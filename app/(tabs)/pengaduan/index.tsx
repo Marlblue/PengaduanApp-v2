@@ -1,3 +1,4 @@
+import { SearchBar } from "@/components/SearchBar";
 import { Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
 import React, { useEffect, useState } from "react";
@@ -16,7 +17,11 @@ import { Colors } from "../../../constants/Colors";
 import { useAuth } from "../../../hooks/useAuth";
 import { supabase } from "../../../lib/supabase";
 import { formatDate, getStatusColor, getStatusText } from "../../../lib/utils";
-import { Pengaduan, PengaduanStatus } from "../../../types/database.types";
+import {
+  Pengaduan,
+  PengaduanKategori,
+  PengaduanStatus,
+} from "../../../types/database.types";
 
 export default function PengaduanListScreen() {
   const { user } = useAuth();
@@ -25,6 +30,11 @@ export default function PengaduanListScreen() {
   const [selectedStatus, setSelectedStatus] = useState<PengaduanStatus | "all">(
     "all"
   );
+  const [selectedKategori, setSelectedKategori] = useState<
+    PengaduanKategori | "all"
+  >("all");
+  const [searchQuery, setSearchQuery] = useState("");
+  const [sortOrder, setSortOrder] = useState<"newest" | "oldest">("newest");
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
 
@@ -42,7 +52,6 @@ export default function PengaduanListScreen() {
         )
         .order("created_at", { ascending: false });
 
-      // Filter berdasarkan role
       if (user.role === "masyarakat") {
         query = query.eq("user_id", user.id);
       }
@@ -54,7 +63,13 @@ export default function PengaduanListScreen() {
       }
 
       setPengaduan(data || []);
-      applyFilter(data || [], selectedStatus);
+      applyFilters(
+        data || [],
+        selectedStatus,
+        selectedKategori,
+        searchQuery,
+        sortOrder
+      );
     } catch (error) {
       console.error("Error fetching pengaduan:", error);
       Alert.alert("Error", "Gagal memuat data pengaduan");
@@ -63,12 +78,44 @@ export default function PengaduanListScreen() {
     }
   };
 
-  const applyFilter = (data: Pengaduan[], status: PengaduanStatus | "all") => {
-    if (status === "all") {
-      setFilteredPengaduan(data);
-    } else {
-      setFilteredPengaduan(data.filter((item) => item.status === status));
+  const applyFilters = (
+    data: Pengaduan[],
+    status: PengaduanStatus | "all",
+    kategori: PengaduanKategori | "all",
+    query: string,
+    order: "newest" | "oldest"
+  ) => {
+    let filtered = data;
+
+    // Filter by status
+    if (status !== "all") {
+      filtered = filtered.filter((item) => item.status === status);
     }
+
+    // Filter by kategori
+    if (kategori !== "all") {
+      filtered = filtered.filter((item) => item.kategori === kategori);
+    }
+
+    // Filter by search query
+    if (query) {
+      const lowerQuery = query.toLowerCase();
+      filtered = filtered.filter(
+        (item) =>
+          item.judul.toLowerCase().includes(lowerQuery) ||
+          item.deskripsi.toLowerCase().includes(lowerQuery) ||
+          item.kategori.toLowerCase().includes(lowerQuery)
+      );
+    }
+
+    // Sort
+    filtered = [...filtered].sort((a, b) => {
+      const dateA = new Date(a.created_at).getTime();
+      const dateB = new Date(b.created_at).getTime();
+      return order === "newest" ? dateB - dateA : dateA - dateB;
+    });
+
+    setFilteredPengaduan(filtered);
   };
 
   useEffect(() => {
@@ -76,13 +123,23 @@ export default function PengaduanListScreen() {
   }, [user]);
 
   useEffect(() => {
-    applyFilter(pengaduan, selectedStatus);
-  }, [selectedStatus]);
+    applyFilters(
+      pengaduan,
+      selectedStatus,
+      selectedKategori,
+      searchQuery,
+      sortOrder
+    );
+  }, [selectedStatus, selectedKategori, searchQuery, sortOrder, pengaduan]);
 
   const onRefresh = async () => {
     setRefreshing(true);
     await fetchPengaduan();
     setRefreshing(false);
+  };
+
+  const clearSearch = () => {
+    setSearchQuery("");
   };
 
   const statusFilters: { value: PengaduanStatus | "all"; label: string }[] = [
@@ -92,6 +149,17 @@ export default function PengaduanListScreen() {
     { value: "selesai", label: "Selesai" },
     { value: "ditolak", label: "Ditolak" },
   ];
+
+  const kategoriFilters: { value: PengaduanKategori | "all"; label: string }[] =
+    [
+      { value: "all", label: "Semua Kategori" },
+      { value: "Infrastruktur", label: "Infrastruktur" },
+      { value: "Kebersihan", label: "Kebersihan" },
+      { value: "Keamanan", label: "Keamanan" },
+      { value: "Kesehatan", label: "Kesehatan" },
+      { value: "Pendidikan", label: "Pendidikan" },
+      { value: "Lainnya", label: "Lainnya" },
+    ];
 
   if (loading) {
     return (
@@ -116,6 +184,78 @@ export default function PengaduanListScreen() {
             <Text style={styles.createButtonText}>Buat Baru</Text>
           </TouchableOpacity>
         </View>
+
+        {/* Search Bar */}
+        <SearchBar
+          value={searchQuery}
+          onChangeText={setSearchQuery}
+          placeholder="Cari pengaduan..."
+          onClear={clearSearch}
+        />
+
+        {/* Sort Options */}
+        <View style={styles.sortContainer}>
+          <Text style={styles.sortLabel}>Urutkan:</Text>
+          <TouchableOpacity
+            style={[
+              styles.sortButton,
+              sortOrder === "newest" && styles.sortButtonActive,
+            ]}
+            onPress={() => setSortOrder("newest")}
+          >
+            <Text
+              style={[
+                styles.sortText,
+                sortOrder === "newest" && styles.sortTextActive,
+              ]}
+            >
+              Terbaru
+            </Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[
+              styles.sortButton,
+              sortOrder === "oldest" && styles.sortButtonActive,
+            ]}
+            onPress={() => setSortOrder("oldest")}
+          >
+            <Text
+              style={[
+                styles.sortText,
+                sortOrder === "oldest" && styles.sortTextActive,
+              ]}
+            >
+              Terlama
+            </Text>
+          </TouchableOpacity>
+        </View>
+
+        {/* Kategori Filter */}
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          style={styles.filterContainer}
+        >
+          {kategoriFilters.map((filter) => (
+            <TouchableOpacity
+              key={filter.value}
+              style={[
+                styles.filterButton,
+                selectedKategori === filter.value && styles.filterButtonActive,
+              ]}
+              onPress={() => setSelectedKategori(filter.value)}
+            >
+              <Text
+                style={[
+                  styles.filterText,
+                  selectedKategori === filter.value && styles.filterTextActive,
+                ]}
+              >
+                {filter.label}
+              </Text>
+            </TouchableOpacity>
+          ))}
+        </ScrollView>
 
         {/* Status Filter */}
         <ScrollView
@@ -143,6 +283,13 @@ export default function PengaduanListScreen() {
             </TouchableOpacity>
           ))}
         </ScrollView>
+
+        {/* Results Count */}
+        <View style={styles.resultsContainer}>
+          <Text style={styles.resultsText}>
+            {filteredPengaduan.length} pengaduan ditemukan
+          </Text>
+        </View>
 
         <ScrollView
           style={styles.listContainer}
@@ -354,6 +501,42 @@ const styles = StyleSheet.create({
   },
   cardUser: {
     fontSize: 12,
+    color: Colors.textLight,
+    fontStyle: "italic",
+  },
+  sortContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 12,
+  },
+  sortLabel: {
+    fontSize: 14,
+    color: Colors.textLight,
+    marginRight: 12,
+  },
+  sortButton: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 16,
+    backgroundColor: Colors.border,
+    marginRight: 8,
+  },
+  sortButtonActive: {
+    backgroundColor: Colors.primary,
+  },
+  sortText: {
+    fontSize: 12,
+    color: Colors.textLight,
+    fontWeight: "500",
+  },
+  sortTextActive: {
+    color: "#fff",
+  },
+  resultsContainer: {
+    marginBottom: 12,
+  },
+  resultsText: {
+    fontSize: 14,
     color: Colors.textLight,
     fontStyle: "italic",
   },

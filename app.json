@@ -10,59 +10,60 @@
     "splash": {
       "image": "./assets/images/splash-icon.png",
       "resizeMode": "contain",
-      "backgroundColor": "#ffffff"
+      "backgroundColor": "#2563eb"
     },
     "assetBundlePatterns": ["**/*"],
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.yourcompany.pengaduanmasyarakat",
+      "bundleIdentifier": "com.yourname.pengaduanmasyarakat",
       "infoPlist": {
-        "NSCameraUsageDescription": "Aplikasi membutuhkan akses kamera untuk mengambil foto bukti pengaduan.",
-        "NSLocationWhenInUseUsageDescription": "Aplikasi membutuhkan akses lokasi untuk menandai lokasi pengaduan.",
-        "NSLocationAlwaysUsageDescription": "Aplikasi membutuhkan akses lokasi untuk menandai lokasi pengaduan.",
-        "NSPhotoLibraryUsageDescription": "Aplikasi membutuhkan akses galeri untuk memilih foto bukti pengaduan."
+        "NSCameraUsageDescription": "Aplikasi memerlukan akses kamera untuk mengambil foto bukti pengaduan",
+        "NSLocationWhenInUseUsageDescription": "Aplikasi memerlukan akses lokasi untuk mencatat lokasi pengaduan",
+        "NSPhotoLibraryUsageDescription": "Aplikasi memerlukan akses galeri untuk memilih foto bukti pengaduan"
       }
     },
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/images/adaptive-icon.png",
-        "backgroundColor": "#ffffff"
+        "backgroundColor": "#2563eb"
       },
-      "package": "com.yourcompany.pengaduanmasyarakat",
+      "package": "com.yourname.pengaduanmasyarakat",
       "permissions": [
         "CAMERA",
-        "ACCESS_FINE_LOCATION",
-        "ACCESS_COARSE_LOCATION",
         "READ_EXTERNAL_STORAGE",
-        "WRITE_EXTERNAL_STORAGE"
-      ]
+        "WRITE_EXTERNAL_STORAGE",
+        "ACCESS_FINE_LOCATION",
+        "ACCESS_COARSE_LOCATION"
+      ],
+      "config": {
+        "googleMaps": {
+          "apiKey": "your_google_maps_api_key_optional"
+        }
+      }
     },
     "web": {
       "favicon": "./assets/images/favicon.png"
     },
     "plugins": [
+      "expo-router",
       [
-        "expo-camera",
+        "expo-image-picker",
         {
-          "cameraPermission": "Aplikasi membutuhkan akses kamera untuk mengambil foto bukti pengaduan."
+          "photosPermission": "Aplikasi memerlukan akses ke foto untuk upload bukti pengaduan",
+          "cameraPermission": "Aplikasi memerlukan akses kamera untuk mengambil foto bukti pengaduan"
         }
       ],
       [
         "expo-location",
         {
-          "locationAlwaysAndWhenInUsePermission": "Aplikasi membutuhkan akses lokasi untuk menandai lokasi pengaduan."
+          "locationAlwaysAndWhenInUsePermission": "Aplikasi memerlukan akses lokasi untuk mencatat lokasi pengaduan"
         }
-      ],
-      [
-        "expo-image-picker",
-        {
-          "photosPermission": "Aplikasi membutuhkan akses galeri untuk memilih foto bukti pengaduan.",
-          "cameraPermission": "Aplikasi membutuhkan akses kamera untuk mengambil foto bukti pengaduan."
-        }
-      ],
-      "expo-router"
+      ]
     ],
     "extra": {
+      "router": {
+        "origin": false
+      },
       "eas": {
         "projectId": "your-project-id"
       }
