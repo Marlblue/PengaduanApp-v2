@@ -21,6 +21,8 @@ export default function RootLayout() {
         <Stack.Screen name="aspirasi/create" />
         <Stack.Screen name="aspirasi/[id]" />
         <Stack.Screen name="aspirasi/update/[id]" />
+        <Stack.Screen name="admin/dashboard" />
+        <Stack.Screen name="admin/users" />
       </Stack>
     </SafeAreaProvider>
   );

@@ -1,3 +1,4 @@
+import { Ionicons } from "@expo/vector-icons";
 import { router, useLocalSearchParams } from "expo-router";
 import React, { useEffect, useState } from "react";
 import {
@@ -25,11 +26,39 @@ interface PengaduanWithDetails extends Pengaduan {
   profiles: Profile;
 }
 
-const STATUS_OPTIONS: { value: PengaduanStatus; label: string }[] = [
-  { value: "pending", label: "Menunggu" },
-  { value: "diproses", label: "Diproses" },
-  { value: "selesai", label: "Selesai" },
-  { value: "ditolak", label: "Ditolak" },
+// Definisikan alur status yang diperbolehkan
+const ALLOWED_STATUS_TRANSITIONS: Record<PengaduanStatus, PengaduanStatus[]> = {
+  pending: ["diproses", "ditolak"], // Dari pending hanya bisa ke diproses atau ditolak
+  diproses: ["selesai", "ditolak"], // Dari diproses hanya bisa ke selesai atau ditolak
+  selesai: [], // Dari selesai TIDAK BISA diubah lagi
+  ditolak: [], // Dari ditolak TIDAK BISA diubah lagi
+};
+
+const STATUS_OPTIONS: {
+  value: PengaduanStatus;
+  label: string;
+  description: string;
+}[] = [
+  {
+    value: "pending",
+    label: "Menunggu",
+    description: "Pengaduan masih menunggu penanganan",
+  },
+  {
+    value: "diproses",
+    label: "Diproses",
+    description: "Pengaduan sedang dalam proses penanganan",
+  },
+  {
+    value: "selesai",
+    label: "Selesai",
+    description: "Pengaduan telah selesai ditangani",
+  },
+  {
+    value: "ditolak",
+    label: "Ditolak",
+    description: "Pengaduan ditolak dengan alasan tertentu",
+  },
 ];
 
 export default function UpdatePengaduanScreen() {
@@ -40,6 +69,11 @@ export default function UpdatePengaduanScreen() {
   const [updating, setUpdating] = useState(false);
 
   const [form, setForm] = useState({
+    status: "pending" as PengaduanStatus,
+    tanggapan: "",
+  });
+
+  const [originalData, setOriginalData] = useState({
     status: "pending" as PengaduanStatus,
     tanggapan: "",
   });
@@ -68,6 +102,10 @@ export default function UpdatePengaduanScreen() {
         status: data.status,
         tanggapan: data.tanggapan || "",
       });
+      setOriginalData({
+        status: data.status,
+        tanggapan: data.tanggapan || "",
+      });
     } catch (error) {
       console.error("Error fetching pengaduan:", error);
       Alert.alert("Error", "Gagal memuat data pengaduan");
@@ -82,15 +120,102 @@ export default function UpdatePengaduanScreen() {
     }
   }, [id]);
 
-  const handleSubmit = async () => {
-    if (!pengaduan) return;
+  // Cek apakah status sudah final (selesai/ditolak)
+  const isFinalStatus = (status: PengaduanStatus): boolean => {
+    return status === "selesai" || status === "ditolak";
+  };
 
+  // Cek apakah status bisa diubah
+  const canChangeStatus = (
+    currentStatus: PengaduanStatus,
+    newStatus: PengaduanStatus
+  ): boolean => {
+    // Jika status saat ini sudah final, tidak bisa diubah
+    if (isFinalStatus(currentStatus)) {
+      return false;
+    }
+
+    // Cek apakah transisi diperbolehkan
+    return ALLOWED_STATUS_TRANSITIONS[currentStatus].includes(newStatus);
+  };
+
+  // Dapatkan opsi status yang diperbolehkan berdasarkan status saat ini
+  const getAllowedStatusOptions = (currentStatus: PengaduanStatus) => {
+    if (isFinalStatus(currentStatus)) {
+      return STATUS_OPTIONS.filter((opt) => opt.value === currentStatus); // Hanya tampilkan status saat ini
+    }
+
+    const allowedTransitions = ALLOWED_STATUS_TRANSITIONS[currentStatus];
+    return STATUS_OPTIONS.filter(
+      (opt) =>
+        opt.value === currentStatus || allowedTransitions.includes(opt.value)
+    );
+  };
+
+  // Cek apakah ada perubahan
+  const hasChanges =
+    form.status !== originalData.status ||
+    form.tanggapan !== originalData.tanggapan;
+
+  // Validasi form berdasarkan status
+  const validateForm = (): boolean => {
+    if (!hasChanges) {
+      Alert.alert("Info", "Tidak ada perubahan yang disimpan");
+      return false;
+    }
+
+    // Jika status sudah final, tidak boleh diubah
+    if (isFinalStatus(originalData.status)) {
+      Alert.alert(
+        "Error",
+        `Status "${getStatusText(originalData.status)}" tidak dapat diubah lagi`
+      );
+      return false;
+    }
+
+    // Validasi transisi status
+    if (!canChangeStatus(originalData.status, form.status)) {
+      Alert.alert(
+        "Error",
+        `Tidak dapat mengubah status dari "${getStatusText(
+          originalData.status
+        )}" ke "${getStatusText(form.status)}"`
+      );
+      return false;
+    }
+
+    // Jika status berubah dari pending ke diproses/selesai/ditolak, wajib ada tanggapan
     if (
-      form.status !== "selesai" &&
-      form.status !== "ditolak" &&
-      !form.tanggapan
+      originalData.status === "pending" &&
+      form.status !== "pending" &&
+      !form.tanggapan.trim()
     ) {
-      Alert.alert("Error", "Harap berikan tanggapan untuk status ini");
+      Alert.alert(
+        "Error",
+        "Harap berikan tanggapan untuk perubahan status ini"
+      );
+      return false;
+    }
+
+    // Jika status diubah ke selesai atau ditolak, wajib ada tanggapan
+    if (
+      (form.status === "selesai" || form.status === "ditolak") &&
+      !form.tanggapan.trim()
+    ) {
+      Alert.alert(
+        "Error",
+        `Harap berikan tanggapan untuk status "${getStatusText(form.status)}"`
+      );
+      return false;
+    }
+
+    return true;
+  };
+
+  const handleSubmit = async () => {
+    if (!pengaduan || !user) return;
+
+    if (!validateForm()) {
       return;
     }
 
@@ -98,13 +223,27 @@ export default function UpdatePengaduanScreen() {
     try {
       const updateData: any = {
         status: form.status,
-        tanggapan: form.tanggapan,
         updated_at: new Date().toISOString(),
       };
 
-      // Assign petugas jika status diubah dari pending
-      if (pengaduan.status === "pending" && form.status !== "pending") {
-        updateData.petugas_id = user?.id;
+      // Tambahkan tanggapan jika ada
+      if (form.tanggapan.trim()) {
+        updateData.tanggapan = form.tanggapan.trim();
+      }
+
+      // Assign petugas jika status diubah dari pending dan belum ada petugas
+      if (
+        pengaduan.status === "pending" &&
+        form.status !== "pending" &&
+        !pengaduan.petugas_id
+      ) {
+        updateData.petugas_id = user.id;
+      }
+
+      // Jika status dikembalikan ke pending, hapus petugas dan tanggapan
+      if (form.status === "pending") {
+        updateData.petugas_id = null;
+        updateData.tanggapan = null;
       }
 
       const { error } = await supabase
@@ -116,18 +255,68 @@ export default function UpdatePengaduanScreen() {
         throw error;
       }
 
-      Alert.alert("Sukses", "Status pengaduan berhasil diperbarui", [
-        {
-          text: "OK",
-          onPress: () => router.back(),
-        },
-      ]);
+      Alert.alert(
+        "Sukses",
+        `Status pengaduan berhasil diubah menjadi "${getStatusText(
+          form.status
+        )}"`,
+        [
+          {
+            text: "OK",
+            onPress: () => router.back(),
+          },
+        ]
+      );
     } catch (error) {
       console.error("Error updating pengaduan:", error);
       Alert.alert("Error", "Gagal memperbarui status pengaduan");
     } finally {
       setUpdating(false);
     }
+  };
+
+  const handleStatusChange = (newStatus: PengaduanStatus) => {
+    // Jika status saat ini sudah final, jangan izinkan perubahan
+    if (isFinalStatus(originalData.status)) {
+      Alert.alert(
+        "Info",
+        `Status "${getStatusText(originalData.status)}" tidak dapat diubah lagi`
+      );
+      return;
+    }
+
+    // Validasi transisi status
+    if (!canChangeStatus(originalData.status, newStatus)) {
+      Alert.alert(
+        "Error",
+        `Tidak dapat mengubah status dari "${getStatusText(
+          originalData.status
+        )}" ke "${getStatusText(newStatus)}"`
+      );
+      return;
+    }
+
+    setForm((prev) => ({ ...prev, status: newStatus }));
+
+    // Reset tanggapan jika status dikembalikan ke pending
+    if (newStatus === "pending") {
+      setForm((prev) => ({ ...prev, tanggapan: "" }));
+    }
+  };
+
+  const getStatusDescription = (status: PengaduanStatus): string => {
+    return (
+      STATUS_OPTIONS.find((opt) => opt.value === status)?.description || ""
+    );
+  };
+
+  const getStatusWarning = (): string | null => {
+    if (isFinalStatus(originalData.status)) {
+      return `Status sudah "${getStatusText(
+        originalData.status
+      )}" dan tidak dapat diubah lagi`;
+    }
+    return null;
   };
 
   if (loading) {
@@ -150,6 +339,9 @@ export default function UpdatePengaduanScreen() {
     );
   }
 
+  const allowedStatusOptions = getAllowedStatusOptions(pengaduan.status);
+  const statusWarning = getStatusWarning();
+
   return (
     <SafeAreaWrapper>
       <ScrollView style={styles.container}>
@@ -167,6 +359,13 @@ export default function UpdatePengaduanScreen() {
           <Text style={styles.pengaduanCategory}>{pengaduan.kategori}</Text>
           <Text style={styles.pengaduanDescription}>{pengaduan.deskripsi}</Text>
 
+          <View style={styles.userInfo}>
+            <Text style={styles.userInfoLabel}>Dilaporkan oleh:</Text>
+            <Text style={styles.userInfoValue}>
+              {pengaduan.profiles?.full_name || pengaduan.profiles?.email}
+            </Text>
+          </View>
+
           <View style={styles.currentStatus}>
             <Text style={styles.currentStatusLabel}>Status Saat Ini:</Text>
             <View
@@ -180,42 +379,143 @@ export default function UpdatePengaduanScreen() {
               </Text>
             </View>
           </View>
+
+          {statusWarning && (
+            <View style={styles.warningContainer}>
+              <Ionicons name="warning" size={20} color={Colors.warning} />
+              <Text style={styles.warningText}>{statusWarning}</Text>
+            </View>
+          )}
         </View>
 
         {/* Form Update */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Update Status</Text>
 
+          {/* Status Description */}
+          <View style={styles.statusDescription}>
+            <Text style={styles.statusDescriptionText}>
+              {getStatusDescription(form.status)}
+            </Text>
+          </View>
+
           {/* Status Options */}
           <View style={styles.statusOptions}>
-            {STATUS_OPTIONS.map((option) => (
+            {allowedStatusOptions.map((option) => (
               <TouchableOpacity
                 key={option.value}
                 style={[
                   styles.statusOption,
                   form.status === option.value && styles.statusOptionActive,
+                  // Non-aktifkan status yang sama dengan current dan yang sudah final
+                  pengaduan.status === option.value &&
+                    styles.statusOptionCurrent,
+                  isFinalStatus(pengaduan.status) &&
+                    styles.statusOptionDisabled,
                 ]}
-                onPress={() =>
-                  setForm((prev) => ({ ...prev, status: option.value }))
+                onPress={() => handleStatusChange(option.value)}
+                disabled={
+                  isFinalStatus(pengaduan.status) ||
+                  pengaduan.status === option.value
                 }
               >
                 <View
                   style={[
                     styles.statusOptionDot,
                     { backgroundColor: getStatusColor(option.value) },
+                    isFinalStatus(pengaduan.status) &&
+                      styles.statusOptionDotDisabled,
                   ]}
                 />
-                <Text
-                  style={[
-                    styles.statusOptionText,
-                    form.status === option.value &&
-                      styles.statusOptionTextActive,
-                  ]}
-                >
-                  {option.label}
-                </Text>
+                <View style={styles.statusOptionContent}>
+                  <Text
+                    style={[
+                      styles.statusOptionText,
+                      form.status === option.value &&
+                        styles.statusOptionTextActive,
+                      pengaduan.status === option.value &&
+                        styles.statusOptionTextCurrent,
+                      isFinalStatus(pengaduan.status) &&
+                        styles.statusOptionTextDisabled,
+                    ]}
+                  >
+                    {option.label}
+                  </Text>
+                  {pengaduan.status === option.value && (
+                    <Text style={styles.currentIndicator}>(Saat Ini)</Text>
+                  )}
+                  {isFinalStatus(pengaduan.status) &&
+                    option.value !== pengaduan.status && (
+                      <Text style={styles.disabledIndicator}>
+                        (Tidak tersedia)
+                      </Text>
+                    )}
+                </View>
               </TouchableOpacity>
             ))}
+          </View>
+
+          {/* Alur Status */}
+          <View style={styles.flowContainer}>
+            <Text style={styles.flowTitle}>Alur Status:</Text>
+            <View style={styles.flowSteps}>
+              <View style={styles.flowStep}>
+                <View
+                  style={[
+                    styles.flowDot,
+                    pengaduan.status === "pending" && styles.flowDotActive,
+                  ]}
+                />
+                <Text style={styles.flowText}>Pending</Text>
+              </View>
+              <View style={styles.flowArrow}>
+                <Ionicons
+                  name="arrow-forward"
+                  size={16}
+                  color={Colors.textLight}
+                />
+              </View>
+              <View style={styles.flowStep}>
+                <View
+                  style={[
+                    styles.flowDot,
+                    pengaduan.status === "diproses" && styles.flowDotActive,
+                  ]}
+                />
+                <Text style={styles.flowText}>Diproses</Text>
+              </View>
+              <View style={styles.flowArrow}>
+                <Ionicons
+                  name="arrow-forward"
+                  size={16}
+                  color={Colors.textLight}
+                />
+              </View>
+              <View style={styles.flowStep}>
+                <View
+                  style={[
+                    styles.flowDot,
+                    pengaduan.status === "selesai" && styles.flowDotActive,
+                  ]}
+                />
+                <Text style={styles.flowText}>Selesai</Text>
+              </View>
+              <View style={styles.flowSeparator}>
+                <Text style={styles.flowOr}>atau</Text>
+              </View>
+              <View style={styles.flowStep}>
+                <View
+                  style={[
+                    styles.flowDot,
+                    pengaduan.status === "ditolak" && styles.flowDotActive,
+                  ]}
+                />
+                <Text style={styles.flowText}>Ditolak</Text>
+              </View>
+            </View>
+            <Text style={styles.flowNote}>
+              * Status "Selesai" dan "Ditolak" tidak dapat diubah kembali
+            </Text>
           </View>
 
           {/* Tanggapan */}
@@ -229,11 +529,23 @@ export default function UpdatePengaduanScreen() {
               {form.status === "selesai" &&
                 "Jelaskan penyelesaian yang telah dilakukan"}
               {form.status === "ditolak" &&
-                "Berikan alasan penolakan pengaduan"}
+                "Berikan alasan penolakan pengaduan dengan jelas"}
+              {form.status === "pending" &&
+                "Tanggapan akan dihapus jika status dikembalikan ke pending"}
             </Text>
             <TextInput
-              style={[styles.input, styles.textArea]}
-              placeholder="Tulis tanggapan Anda..."
+              style={[
+                styles.input,
+                styles.textArea,
+                isFinalStatus(pengaduan.status) && styles.inputDisabled,
+              ]}
+              placeholder={
+                isFinalStatus(pengaduan.status)
+                  ? "Status sudah final, tidak dapat memberikan tanggapan..."
+                  : form.status === "pending"
+                  ? "Tanggapan tidak diperlukan untuk status pending..."
+                  : "Tulis tanggapan Anda..."
+              }
               value={form.tanggapan}
               onChangeText={(value) =>
                 setForm((prev) => ({ ...prev, tanggapan: value }))
@@ -241,7 +553,20 @@ export default function UpdatePengaduanScreen() {
               multiline
               numberOfLines={4}
               textAlignVertical="top"
+              editable={
+                !isFinalStatus(pengaduan.status) && form.status !== "pending"
+              }
             />
+            {form.status === "pending" && !isFinalStatus(pengaduan.status) && (
+              <Text style={styles.disabledNote}>
+                Tanggapan tidak dapat ditambahkan untuk status pending
+              </Text>
+            )}
+            {isFinalStatus(pengaduan.status) && (
+              <Text style={styles.disabledNote}>
+                Status sudah final, tidak dapat mengubah tanggapan
+              </Text>
+            )}
           </View>
         </View>
 
@@ -258,16 +583,18 @@ export default function UpdatePengaduanScreen() {
           <TouchableOpacity
             style={[
               styles.submitButton,
-              (updating || (form.status !== "pending" && !form.tanggapan)) &&
+              (!hasChanges || updating || isFinalStatus(pengaduan.status)) &&
                 styles.submitButtonDisabled,
             ]}
             onPress={handleSubmit}
             disabled={
-              updating || (form.status !== "pending" && !form.tanggapan)
+              !hasChanges || updating || isFinalStatus(pengaduan.status)
             }
           >
             {updating ? (
               <ActivityIndicator size="small" color="#fff" />
+            ) : isFinalStatus(pengaduan.status) ? (
+              <Text style={styles.submitButtonText}>Status Final</Text>
             ) : (
               <Text style={styles.submitButtonText}>Simpan Perubahan</Text>
             )}
@@ -336,10 +663,29 @@ const styles = StyleSheet.create({
     lineHeight: 20,
     marginBottom: 12,
   },
+  userInfo: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    marginBottom: 12,
+    padding: 8,
+    backgroundColor: "#f8fafc",
+    borderRadius: 6,
+  },
+  userInfoLabel: {
+    fontSize: 14,
+    color: Colors.textLight,
+  },
+  userInfoValue: {
+    fontSize: 14,
+    color: Colors.text,
+    fontWeight: "500",
+  },
   currentStatus: {
     flexDirection: "row",
     alignItems: "center",
     gap: 8,
+    marginBottom: 12,
   },
   currentStatusLabel: {
     fontSize: 14,
@@ -354,6 +700,35 @@ const styles = StyleSheet.create({
     color: "#fff",
     fontSize: 12,
     fontWeight: "600",
+  },
+  warningContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    padding: 12,
+    backgroundColor: "#fef3c7",
+    borderRadius: 8,
+    borderLeftWidth: 4,
+    borderLeftColor: Colors.warning,
+  },
+  warningText: {
+    flex: 1,
+    fontSize: 14,
+    color: Colors.text,
+    fontWeight: "500",
+  },
+  statusDescription: {
+    backgroundColor: "#f0f9ff",
+    padding: 12,
+    borderRadius: 8,
+    marginBottom: 16,
+    borderLeftWidth: 4,
+    borderLeftColor: Colors.primary,
+  },
+  statusDescriptionText: {
+    fontSize: 14,
+    color: Colors.text,
+    fontStyle: "italic",
   },
   statusOptions: {
     gap: 8,
@@ -372,10 +747,28 @@ const styles = StyleSheet.create({
     borderColor: Colors.primary,
     backgroundColor: "#f0f9ff",
   },
+  statusOptionCurrent: {
+    backgroundColor: "#f8fafc",
+    borderColor: Colors.border,
+  },
+  statusOptionDisabled: {
+    backgroundColor: "#f8fafc",
+    borderColor: Colors.border,
+    opacity: 0.6,
+  },
   statusOptionDot: {
     width: 12,
     height: 12,
     borderRadius: 6,
+  },
+  statusOptionDotDisabled: {
+    opacity: 0.5,
+  },
+  statusOptionContent: {
+    flex: 1,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
   },
   statusOptionText: {
     fontSize: 14,
@@ -384,6 +777,79 @@ const styles = StyleSheet.create({
   },
   statusOptionTextActive: {
     color: Colors.primary,
+  },
+  statusOptionTextCurrent: {
+    color: Colors.textLight,
+  },
+  statusOptionTextDisabled: {
+    color: Colors.textLight,
+  },
+  currentIndicator: {
+    fontSize: 12,
+    color: Colors.textLight,
+    fontStyle: "italic",
+  },
+  disabledIndicator: {
+    fontSize: 10,
+    color: Colors.textLight,
+    fontStyle: "italic",
+  },
+  flowContainer: {
+    backgroundColor: "#f8fafc",
+    padding: 16,
+    borderRadius: 8,
+    marginBottom: 20,
+    borderWidth: 1,
+    borderColor: Colors.border,
+  },
+  flowTitle: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: Colors.text,
+    marginBottom: 12,
+  },
+  flowSteps: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginBottom: 8,
+  },
+  flowStep: {
+    alignItems: "center",
+    flex: 1,
+  },
+  flowDot: {
+    width: 16,
+    height: 16,
+    borderRadius: 8,
+    backgroundColor: Colors.border,
+    marginBottom: 4,
+  },
+  flowDotActive: {
+    backgroundColor: Colors.primary,
+  },
+  flowText: {
+    fontSize: 12,
+    color: Colors.textLight,
+    textAlign: "center",
+  },
+  flowArrow: {
+    paddingHorizontal: 4,
+  },
+  flowSeparator: {
+    alignItems: "center",
+    paddingHorizontal: 8,
+  },
+  flowOr: {
+    fontSize: 10,
+    color: Colors.textLight,
+    fontStyle: "italic",
+  },
+  flowNote: {
+    fontSize: 10,
+    color: Colors.textLight,
+    fontStyle: "italic",
+    textAlign: "center",
   },
   field: {
     gap: 8,
@@ -406,8 +872,19 @@ const styles = StyleSheet.create({
     fontSize: 16,
     backgroundColor: "#fff",
   },
+  inputDisabled: {
+    backgroundColor: "#f8fafc",
+    borderColor: Colors.border,
+    color: Colors.textLight,
+  },
   textArea: {
     minHeight: 100,
+  },
+  disabledNote: {
+    fontSize: 12,
+    color: Colors.textLight,
+    fontStyle: "italic",
+    marginTop: 4,
   },
   actions: {
     flexDirection: "row",
@@ -436,6 +913,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   submitButtonDisabled: {
+    backgroundColor: Colors.textLight,
     opacity: 0.6,
   },
   submitButtonText: {

@@ -106,6 +106,82 @@ export default function HomeScreen() {
     setRefreshing(false);
   };
 
+  // Di dalam komponen HomeScreen, perbaiki bagian actions
+  const renderActions = () => {
+    const isMasyarakat = user?.role === "masyarakat";
+    const isPetugas = user?.role === "petugas";
+    const isAdmin = user?.role === "admin";
+
+    return (
+      <View style={styles.actions}>
+        {/* Hanya masyarakat yang bisa buat pengaduan */}
+        {isMasyarakat && (
+          <TouchableOpacity
+            style={styles.actionCard}
+            onPress={() => router.push("/pengaduan/create")}
+          >
+            <Text style={styles.actionTitle}>Buat Pengaduan</Text>
+            <Text style={styles.actionDescription}>
+              Laporkan masalah atau keluhan Anda dengan foto dan lokasi
+            </Text>
+          </TouchableOpacity>
+        )}
+
+        {/* Hanya masyarakat yang bisa buat aspirasi */}
+        {isMasyarakat && (
+          <TouchableOpacity
+            style={styles.actionCard}
+            onPress={() => router.push("/aspirasi/create")}
+          >
+            <Text style={styles.actionTitle}>Sampaikan Aspirasi</Text>
+            <Text style={styles.actionDescription}>
+              Berikan saran dan masukan untuk kemajuan bersama
+            </Text>
+          </TouchableOpacity>
+        )}
+
+        {/* Petugas dan Admin bisa kelola pengaduan */}
+        {(isPetugas || isAdmin) && (
+          <TouchableOpacity
+            style={styles.actionCard}
+            onPress={() => router.push("/(tabs)/pengaduan")}
+          >
+            <Text style={styles.actionTitle}>Kelola Pengaduan</Text>
+            <Text style={styles.actionDescription}>
+              Lihat dan kelola semua pengaduan masyarakat
+            </Text>
+          </TouchableOpacity>
+        )}
+
+        {/* Hanya Admin yang bisa kelola aspirasi */}
+        {isAdmin && (
+          <TouchableOpacity
+            style={styles.actionCard}
+            onPress={() => router.push("/(tabs)/aspirasi")}
+          >
+            <Text style={styles.actionTitle}>Kelola Aspirasi</Text>
+            <Text style={styles.actionDescription}>
+              Lihat dan tanggapi aspirasi dari masyarakat
+            </Text>
+          </TouchableOpacity>
+        )}
+
+        {/* Admin dashboard khusus admin */}
+        {isAdmin && (
+          <TouchableOpacity
+            style={styles.actionCard}
+            onPress={() => router.push("/admin/dashboard")}
+          >
+            <Text style={styles.actionTitle}>Dashboard Admin</Text>
+            <Text style={styles.actionDescription}>
+              Lihat statistik lengkap dan kelola sistem
+            </Text>
+          </TouchableOpacity>
+        )}
+      </View>
+    );
+  };
+
   const renderStats = () => {
     if (user?.role === "masyarakat") {
       return (
@@ -170,54 +246,8 @@ export default function HomeScreen() {
             </Text>
           </View>
         </View>
-
         {renderStats()}
-
-        <View style={styles.actions}>
-          <TouchableOpacity
-            style={styles.actionCard}
-            onPress={() => router.push("/pengaduan/create")}
-          >
-            <Text style={styles.actionTitle}>Buat Pengaduan</Text>
-            <Text style={styles.actionDescription}>
-              Laporkan masalah atau keluhan Anda dengan foto dan lokasi
-            </Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={styles.actionCard}
-            onPress={() => router.push("/aspirasi/create")}
-          >
-            <Text style={styles.actionTitle}>Sampaikan Aspirasi</Text>
-            <Text style={styles.actionDescription}>
-              Berikan saran dan masukan untuk kemajuan bersama
-            </Text>
-          </TouchableOpacity>
-
-          {(user?.role === "petugas" || user?.role === "admin") && (
-            <TouchableOpacity
-              style={styles.actionCard}
-              onPress={() => router.push("/(tabs)/pengaduan")}
-            >
-              <Text style={styles.actionTitle}>Kelola Pengaduan</Text>
-              <Text style={styles.actionDescription}>
-                Lihat dan kelola semua pengaduan masyarakat
-              </Text>
-            </TouchableOpacity>
-          )}
-
-          {user?.role === "admin" && (
-            <TouchableOpacity
-              style={styles.actionCard}
-              onPress={() => router.push("/(tabs)/aspirasi")}
-            >
-              <Text style={styles.actionTitle}>Kelola Aspirasi</Text>
-              <Text style={styles.actionDescription}>
-                Lihat dan tanggapi aspirasi dari masyarakat
-              </Text>
-            </TouchableOpacity>
-          )}
-        </View>
+        {renderActions()}
       </ScrollView>
     </SafeAreaWrapper>
   );

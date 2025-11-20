@@ -37,6 +37,7 @@ export default function PengaduanListScreen() {
   const [sortOrder, setSortOrder] = useState<"newest" | "oldest">("newest");
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const canCreatePengaduan = user?.role === "masyarakat";
 
   const fetchPengaduan = async () => {
     if (!user) return;
@@ -176,13 +177,15 @@ export default function PengaduanListScreen() {
       <View style={styles.container}>
         <View style={styles.header}>
           <Text style={styles.title}>Daftar Pengaduan</Text>
-          <TouchableOpacity
-            style={styles.createButton}
-            onPress={() => router.push("/pengaduan/create")}
-          >
-            <Ionicons name="add" size={20} color="#fff" />
-            <Text style={styles.createButtonText}>Buat Baru</Text>
-          </TouchableOpacity>
+          {canCreatePengaduan && (
+            <TouchableOpacity
+              style={styles.createButton}
+              onPress={() => router.push("/pengaduan/create")}
+            >
+              <Ionicons name="add" size={20} color="#fff" />
+              <Text style={styles.createButtonText}>Buat Baru</Text>
+            </TouchableOpacity>
+          )}
         </View>
 
         {/* Search Bar */}
