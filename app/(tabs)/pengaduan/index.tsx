@@ -5,7 +5,6 @@ import React, { useEffect, useState } from "react";
 import {
   Alert,
   Image,
-  RefreshControl,
   ScrollView,
   StyleSheet,
   Text,
@@ -174,132 +173,129 @@ export default function PengaduanListScreen() {
 
   return (
     <SafeAreaWrapper>
-      <View style={styles.container}>
-        <View style={styles.header}>
-          <Text style={styles.title}>Daftar Pengaduan</Text>
-          {canCreatePengaduan && (
+      <ScrollView>
+        <View style={styles.container}>
+          <View style={styles.header}>
+            <Text style={styles.title}>Daftar Pengaduan</Text>
+            {canCreatePengaduan && (
+              <TouchableOpacity
+                style={styles.createButton}
+                onPress={() => router.push("/pengaduan/create")}
+              >
+                <Ionicons name="add" size={20} color="#fff" />
+                <Text style={styles.createButtonText}>Buat Baru</Text>
+              </TouchableOpacity>
+            )}
+          </View>
+
+          {/* Search Bar */}
+          <SearchBar
+            value={searchQuery}
+            onChangeText={setSearchQuery}
+            placeholder="Cari pengaduan..."
+            onClear={clearSearch}
+          />
+
+          {/* Sort Options */}
+          <View style={styles.sortContainer}>
+            <Text style={styles.sortLabel}>Urutkan:</Text>
             <TouchableOpacity
-              style={styles.createButton}
-              onPress={() => router.push("/pengaduan/create")}
-            >
-              <Ionicons name="add" size={20} color="#fff" />
-              <Text style={styles.createButtonText}>Buat Baru</Text>
-            </TouchableOpacity>
-          )}
-        </View>
-
-        {/* Search Bar */}
-        <SearchBar
-          value={searchQuery}
-          onChangeText={setSearchQuery}
-          placeholder="Cari pengaduan..."
-          onClear={clearSearch}
-        />
-
-        {/* Sort Options */}
-        <View style={styles.sortContainer}>
-          <Text style={styles.sortLabel}>Urutkan:</Text>
-          <TouchableOpacity
-            style={[
-              styles.sortButton,
-              sortOrder === "newest" && styles.sortButtonActive,
-            ]}
-            onPress={() => setSortOrder("newest")}
-          >
-            <Text
               style={[
-                styles.sortText,
-                sortOrder === "newest" && styles.sortTextActive,
+                styles.sortButton,
+                sortOrder === "newest" && styles.sortButtonActive,
               ]}
-            >
-              Terbaru
-            </Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={[
-              styles.sortButton,
-              sortOrder === "oldest" && styles.sortButtonActive,
-            ]}
-            onPress={() => setSortOrder("oldest")}
-          >
-            <Text
-              style={[
-                styles.sortText,
-                sortOrder === "oldest" && styles.sortTextActive,
-              ]}
-            >
-              Terlama
-            </Text>
-          </TouchableOpacity>
-        </View>
-
-        {/* Kategori Filter */}
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          style={styles.filterContainer}
-        >
-          {kategoriFilters.map((filter) => (
-            <TouchableOpacity
-              key={filter.value}
-              style={[
-                styles.filterButton,
-                selectedKategori === filter.value && styles.filterButtonActive,
-              ]}
-              onPress={() => setSelectedKategori(filter.value)}
+              onPress={() => setSortOrder("newest")}
             >
               <Text
                 style={[
-                  styles.filterText,
-                  selectedKategori === filter.value && styles.filterTextActive,
+                  styles.sortText,
+                  sortOrder === "newest" && styles.sortTextActive,
                 ]}
               >
-                {filter.label}
+                Terbaru
               </Text>
             </TouchableOpacity>
-          ))}
-        </ScrollView>
-
-        {/* Status Filter */}
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          style={styles.filterContainer}
-        >
-          {statusFilters.map((filter) => (
             <TouchableOpacity
-              key={filter.value}
               style={[
-                styles.filterButton,
-                selectedStatus === filter.value && styles.filterButtonActive,
+                styles.sortButton,
+                sortOrder === "oldest" && styles.sortButtonActive,
               ]}
-              onPress={() => setSelectedStatus(filter.value)}
+              onPress={() => setSortOrder("oldest")}
             >
               <Text
                 style={[
-                  styles.filterText,
-                  selectedStatus === filter.value && styles.filterTextActive,
+                  styles.sortText,
+                  sortOrder === "oldest" && styles.sortTextActive,
                 ]}
               >
-                {filter.label}
+                Terlama
               </Text>
             </TouchableOpacity>
-          ))}
-        </ScrollView>
+          </View>
 
-        {/* Results Count */}
-        <View style={styles.resultsContainer}>
-          <Text style={styles.resultsText}>
-            {filteredPengaduan.length} pengaduan ditemukan
-          </Text>
-        </View>
+          {/* Kategori Filter */}
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            style={styles.filterContainer}
+          >
+            {kategoriFilters.map((filter) => (
+              <TouchableOpacity
+                key={filter.value}
+                style={[
+                  styles.filterButton,
+                  selectedKategori === filter.value &&
+                    styles.filterButtonActive,
+                ]}
+                onPress={() => setSelectedKategori(filter.value)}
+              >
+                <Text
+                  style={[
+                    styles.filterText,
+                    selectedKategori === filter.value &&
+                      styles.filterTextActive,
+                  ]}
+                >
+                  {filter.label}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </ScrollView>
 
-        <ScrollView
-          style={styles.listContainer}
-          refreshControl={
-            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
-          }
-        >
+          {/* Status Filter */}
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            style={styles.filterContainer}
+          >
+            {statusFilters.map((filter) => (
+              <TouchableOpacity
+                key={filter.value}
+                style={[
+                  styles.filterButton,
+                  selectedStatus === filter.value && styles.filterButtonActive,
+                ]}
+                onPress={() => setSelectedStatus(filter.value)}
+              >
+                <Text
+                  style={[
+                    styles.filterText,
+                    selectedStatus === filter.value && styles.filterTextActive,
+                  ]}
+                >
+                  {filter.label}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </ScrollView>
+
+          {/* Results Count */}
+          <View style={styles.resultsContainer}>
+            <Text style={styles.resultsText}>
+              {filteredPengaduan.length} pengaduan ditemukan
+            </Text>
+          </View>
+
           {filteredPengaduan.length === 0 ? (
             <View style={styles.emptyContainer}>
               <Ionicons
@@ -366,8 +362,8 @@ export default function PengaduanListScreen() {
               </TouchableOpacity>
             ))
           )}
-        </ScrollView>
-      </View>
+        </View>
+      </ScrollView>
     </SafeAreaWrapper>
   );
 }

@@ -17,7 +17,7 @@ export const SafeAreaWrapper: React.FC<SafeAreaWrapperProps> = ({
         styles.container,
         {
           paddingTop: insets.top,
-          paddingBottom: insets.bottom,
+          // jangan pakai paddingBottom di screen yang memakai tabs
         },
       ]}
     >

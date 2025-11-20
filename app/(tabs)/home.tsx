@@ -224,6 +224,7 @@ export default function HomeScreen() {
     <SafeAreaWrapper>
       <ScrollView
         style={styles.container}
+        contentContainerStyle={{ paddingBottom: 40 }}
         refreshControl={
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
         }

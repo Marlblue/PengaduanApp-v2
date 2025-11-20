@@ -1,9 +1,10 @@
 import { Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
+  RefreshControl,
   ScrollView,
   StyleSheet,
   Text,
@@ -17,14 +18,79 @@ import { useAuth } from "../../hooks/useAuth";
 import { supabase } from "../../lib/supabase";
 import { getStatusColor } from "../../lib/utils";
 
+interface ProfileStats {
+  totalPengaduan: number;
+  totalAspirasi: number;
+  pengaduanByStatus: {
+    pending: number;
+    diproses: number;
+    selesai: number;
+    ditolak: number;
+  };
+}
+
 export default function ProfileScreen() {
-  const { user } = useAuth();
+  const { user, refreshUser } = useAuth();
   const [editing, setEditing] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
+  const [stats, setStats] = useState<ProfileStats>({
+    totalPengaduan: 0,
+    totalAspirasi: 0,
+    pengaduanByStatus: { pending: 0, diproses: 0, selesai: 0, ditolak: 0 },
+  });
+
   const [form, setForm] = useState({
     full_name: user?.full_name || "",
     phone: user?.phone || "",
   });
+
+  const fetchStats = async () => {
+    if (!user) return;
+
+    try {
+      // Fetch pengaduan stats
+      const { data: pengaduanData, error: pengaduanError } = await supabase
+        .from("pengaduan")
+        .select("*")
+        .eq("user_id", user.id);
+
+      // Fetch aspirasi stats
+      const { data: aspirasiData, error: aspirasiError } = await supabase
+        .from("aspirasi")
+        .select("*")
+        .eq("user_id", user.id);
+
+      if (!pengaduanError && !aspirasiError) {
+        const pengaduan = pengaduanData || [];
+        const aspirasi = aspirasiData || [];
+
+        setStats({
+          totalPengaduan: pengaduan.length,
+          totalAspirasi: aspirasi.length,
+          pengaduanByStatus: {
+            pending: pengaduan.filter((p) => p.status === "pending").length,
+            diproses: pengaduan.filter((p) => p.status === "diproses").length,
+            selesai: pengaduan.filter((p) => p.status === "selesai").length,
+            ditolak: pengaduan.filter((p) => p.status === "ditolak").length,
+          },
+        });
+      }
+    } catch (error) {
+      console.error("Error fetching stats:", error);
+    }
+  };
+
+  useEffect(() => {
+    if (user) {
+      fetchStats();
+      // Update form dengan data terbaru dari user
+      setForm({
+        full_name: user.full_name || "",
+        phone: user.phone || "",
+      });
+    }
+  }, [user]);
 
   const handleLogout = async () => {
     Alert.alert("Konfirmasi", "Apakah Anda yakin ingin keluar?", [
@@ -40,9 +106,30 @@ export default function ProfileScreen() {
     ]);
   };
 
+  const validatePhone = (phone: string) => {
+    // Hilangkan spasi dan strip
+    const clean = phone.replace(/[\s-]/g, "");
+
+    // Format valid:
+    // 08123456789
+    // 628123456789
+    // +628123456789
+    const regex = /^(0|\+?62)[0-9]{8,13}$/;
+
+    return regex.test(clean);
+  };
+
   const handleSave = async () => {
     if (!form.full_name.trim()) {
       Alert.alert("Error", "Nama lengkap tidak boleh kosong");
+      return;
+    }
+
+    if (form.phone && !validatePhone(form.phone)) {
+      Alert.alert(
+        "Error",
+        "Format nomor telepon tidak valid. Contoh: 081234567890"
+      );
       return;
     }
 
@@ -52,7 +139,7 @@ export default function ProfileScreen() {
         .from("profiles")
         .update({
           full_name: form.full_name.trim(),
-          phone: form.phone.trim(),
+          phone: form.phone.trim() || null,
         })
         .eq("id", user?.id);
 
@@ -60,10 +147,13 @@ export default function ProfileScreen() {
         throw error;
       }
 
+      // Refresh user data
+      if (refreshUser) {
+        await refreshUser();
+      }
+
       Alert.alert("Sukses", "Profil berhasil diperbarui");
       setEditing(false);
-      // Refresh user data
-      // Note: In a real app, you might want to update the auth context
     } catch (error) {
       console.error("Error updating profile:", error);
       Alert.alert("Error", "Gagal memperbarui profil");
@@ -80,9 +170,34 @@ export default function ProfileScreen() {
     setEditing(false);
   };
 
+  const onRefresh = async () => {
+    setRefreshing(true);
+    await fetchStats();
+    setRefreshing(false);
+  };
+
+  const formatPhone = (phone: string | null): string => {
+    if (!phone) return "-";
+
+    // Format: +62 812-3456-7890
+    const cleaned = phone.replace(/\D/g, "");
+    if (cleaned.startsWith("62")) {
+      return `+${cleaned}`;
+    } else if (cleaned.startsWith("0")) {
+      return `+62 ${cleaned.slice(1)}`;
+    }
+    return phone;
+  };
+
   return (
     <SafeAreaWrapper>
-      <ScrollView style={styles.container}>
+      <ScrollView
+        style={styles.container}
+        contentContainerStyle={{ paddingBottom: 40 }}
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+        }
+      >
         {/* Header Profile */}
         <View style={styles.header}>
           <View style={styles.avatar}>
@@ -99,6 +214,7 @@ export default function ProfileScreen() {
                   setForm((prev) => ({ ...prev, full_name: value }))
                 }
                 placeholder="Nama Lengkap"
+                placeholderTextColor={Colors.textLight}
               />
             ) : (
               user?.full_name || "Pengguna"
@@ -167,19 +283,33 @@ export default function ProfileScreen() {
             <View style={styles.infoItem}>
               <Text style={styles.infoLabel}>Telepon</Text>
               {editing ? (
-                <TextInput
-                  style={styles.input}
-                  value={form.phone}
-                  onChangeText={(value) =>
-                    setForm((prev) => ({ ...prev, phone: value }))
-                  }
-                  placeholder="Nomor Telepon"
-                  keyboardType="phone-pad"
-                />
+                <View style={styles.phoneInputContainer}>
+                  <TextInput
+                    style={styles.phoneInput}
+                    value={form.phone}
+                    onChangeText={(value) =>
+                      setForm((prev) => ({ ...prev, phone: value }))
+                    }
+                    placeholder="081234567890"
+                    keyboardType="phone-pad"
+                    maxLength={15}
+                  />
+                  {form.phone && !validatePhone(form.phone) && (
+                    <Ionicons name="warning" size={16} color={Colors.error} />
+                  )}
+                </View>
               ) : (
-                <Text style={styles.infoValue}>{user?.phone || "-"}</Text>
+                <Text style={styles.infoValue}>
+                  {formatPhone(user?.phone || null)}
+                </Text>
               )}
             </View>
+
+            {editing && form.phone && !validatePhone(form.phone) && (
+              <Text style={styles.phoneHelper}>
+                Format: 08xx-xxxx-xxxx atau +628xx-xxxx-xxxx
+              </Text>
+            )}
 
             <View style={styles.infoItem}>
               <Text style={styles.infoLabel}>Role</Text>
@@ -196,7 +326,11 @@ export default function ProfileScreen() {
               <Text style={styles.infoLabel}>Bergabung</Text>
               <Text style={styles.infoValue}>
                 {user?.created_at
-                  ? new Date(user.created_at).toLocaleDateString("id-ID")
+                  ? new Date(user.created_at).toLocaleDateString("id-ID", {
+                      day: "numeric",
+                      month: "long",
+                      year: "numeric",
+                    })
                   : "-"}
               </Text>
             </View>
@@ -214,9 +348,19 @@ export default function ProfileScreen() {
               </TouchableOpacity>
 
               <TouchableOpacity
-                style={styles.saveButton}
+                style={[
+                  styles.saveButton,
+                  (loading ||
+                    !form.full_name.trim() ||
+                    (!!form.phone && !validatePhone(form.phone))) &&
+                    styles.saveButtonDisabled,
+                ]}
                 onPress={handleSave}
-                disabled={loading}
+                disabled={
+                  loading ||
+                  !form.full_name.trim() ||
+                  (!!form.phone && !validatePhone(form.phone))
+                }
               >
                 {loading ? (
                   <ActivityIndicator size="small" color="#fff" />
@@ -229,26 +373,131 @@ export default function ProfileScreen() {
         </View>
 
         {/* Statistik */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Statistik</Text>
-          <View style={styles.statsGrid}>
-            <View style={styles.statItem}>
-              <Ionicons name="document-text" size={24} color={Colors.primary} />
-              <View style={styles.statText}>
-                <Text style={styles.statNumber}>0</Text>
-                <Text style={styles.statLabel}>Pengaduan</Text>
+        {user?.role === "masyarakat" && (
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Statistik Saya</Text>
+            <View style={styles.statsGrid}>
+              <View style={styles.statItem}>
+                <Ionicons
+                  name="document-text"
+                  size={24}
+                  color={Colors.primary}
+                />
+                <View style={styles.statText}>
+                  <Text style={styles.statNumber}>{stats.totalPengaduan}</Text>
+                  <Text style={styles.statLabel}>Total Pengaduan</Text>
+                </View>
+              </View>
+
+              <View style={styles.statItem}>
+                <Ionicons name="chatbubble" size={24} color={Colors.primary} />
+                <View style={styles.statText}>
+                  <Text style={styles.statNumber}>{stats.totalAspirasi}</Text>
+                  <Text style={styles.statLabel}>Total Aspirasi</Text>
+                </View>
               </View>
             </View>
 
-            <View style={styles.statItem}>
-              <Ionicons name="chatbubble" size={24} color={Colors.primary} />
-              <View style={styles.statText}>
-                <Text style={styles.statNumber}>0</Text>
-                <Text style={styles.statLabel}>Aspirasi</Text>
+            {/* Status Breakdown */}
+            {stats.totalPengaduan > 0 && (
+              <View style={styles.statusBreakdown}>
+                <Text style={styles.breakdownTitle}>Status Pengaduan:</Text>
+                <View style={styles.statusItems}>
+                  <View style={styles.statusItemSmall}>
+                    <View
+                      style={[
+                        styles.statusDot,
+                        { backgroundColor: getStatusColor("pending") },
+                      ]}
+                    />
+                    <Text style={styles.statusCount}>
+                      {stats.pengaduanByStatus.pending}
+                    </Text>
+                    <Text style={styles.statusLabelSmall}>Menunggu</Text>
+                  </View>
+                  <View style={styles.statusItemSmall}>
+                    <View
+                      style={[
+                        styles.statusDot,
+                        { backgroundColor: getStatusColor("diproses") },
+                      ]}
+                    />
+                    <Text style={styles.statusCount}>
+                      {stats.pengaduanByStatus.diproses}
+                    </Text>
+                    <Text style={styles.statusLabelSmall}>Diproses</Text>
+                  </View>
+                  <View style={styles.statusItemSmall}>
+                    <View
+                      style={[
+                        styles.statusDot,
+                        { backgroundColor: getStatusColor("selesai") },
+                      ]}
+                    />
+                    <Text style={styles.statusCount}>
+                      {stats.pengaduanByStatus.selesai}
+                    </Text>
+                    <Text style={styles.statusLabelSmall}>Selesai</Text>
+                  </View>
+                  <View style={styles.statusItemSmall}>
+                    <View
+                      style={[
+                        styles.statusDot,
+                        { backgroundColor: getStatusColor("ditolak") },
+                      ]}
+                    />
+                    <Text style={styles.statusCount}>
+                      {stats.pengaduanByStatus.ditolak}
+                    </Text>
+                    <Text style={styles.statusLabelSmall}>Ditolak</Text>
+                  </View>
+                </View>
               </View>
+            )}
+          </View>
+        )}
+
+        {/* Statistik untuk Petugas/Admin */}
+        {(user?.role === "petugas" || user?.role === "admin") && (
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Statistik Sistem</Text>
+            <View style={styles.adminStats}>
+              <View style={styles.adminStatItem}>
+                <Ionicons
+                  name="document-text"
+                  size={20}
+                  color={Colors.primary}
+                />
+                <View style={styles.adminStatText}>
+                  <Text style={styles.adminStatNumber}>
+                    {stats.totalPengaduan}
+                  </Text>
+                  <Text style={styles.adminStatLabel}>Total Pengaduan</Text>
+                </View>
+              </View>
+              <View style={styles.adminStatItem}>
+                <Ionicons name="chatbubble" size={20} color={Colors.primary} />
+                <View style={styles.adminStatText}>
+                  <Text style={styles.adminStatNumber}>
+                    {stats.totalAspirasi}
+                  </Text>
+                  <Text style={styles.adminStatLabel}>Total Aspirasi</Text>
+                </View>
+              </View>
+              {user?.role === "admin" && (
+                <TouchableOpacity
+                  style={styles.adminDashboardButton}
+                  onPress={() => router.push("/admin/dashboard")}
+                >
+                  <Ionicons name="stats-chart" size={16} color="#fff" />
+                  <Text style={styles.adminDashboardText}>
+                    Dashboard Lengkap
+                  </Text>
+                </TouchableOpacity>
+              )}
             </View>
           </View>
-        </View>
+        )}
 
         {/* Aplikasi Info */}
         <View style={styles.section}>
@@ -261,6 +510,16 @@ export default function ProfileScreen() {
             <View style={styles.infoItem}>
               <Text style={styles.infoLabel}>Developer</Text>
               <Text style={styles.infoValue}>Tim Pengembangan</Text>
+            </View>
+            <View style={styles.infoItem}>
+              <Text style={styles.infoLabel}>Update Terakhir</Text>
+              <Text style={styles.infoValue}>
+                {new Date().toLocaleDateString("id-ID", {
+                  day: "numeric",
+                  month: "long",
+                  year: "numeric",
+                })}
+              </Text>
             </View>
           </View>
         </View>
@@ -277,7 +536,7 @@ export default function ProfileScreen() {
 
 const styles = StyleSheet.create({
   container: {
-    flex: 1,
+    flexGrow: 1,
     padding: 16,
   },
   header: {
@@ -311,6 +570,7 @@ const styles = StyleSheet.create({
     fontWeight: "bold",
     color: Colors.text,
     marginBottom: 4,
+    textAlign: "center",
   },
   nameInput: {
     fontSize: 24,
@@ -410,6 +670,29 @@ const styles = StyleSheet.create({
     flex: 2,
     textAlign: "right",
   },
+  phoneInputContainer: {
+    flex: 2,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "flex-end",
+  },
+  phoneInput: {
+    fontSize: 14,
+    color: Colors.text,
+    borderBottomWidth: 1,
+    borderBottomColor: Colors.primary,
+    paddingVertical: 4,
+    flex: 1,
+    textAlign: "right",
+    marginRight: 8,
+  },
+  phoneHelper: {
+    fontSize: 12,
+    color: Colors.error,
+    fontStyle: "italic",
+    marginTop: 4,
+    textAlign: "right",
+  },
   editActions: {
     flexDirection: "row",
     gap: 12,
@@ -439,6 +722,9 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     alignItems: "center",
   },
+  saveButtonDisabled: {
+    opacity: 0.6,
+  },
   saveButtonText: {
     color: "#fff",
     fontSize: 14,
@@ -447,6 +733,7 @@ const styles = StyleSheet.create({
   statsGrid: {
     flexDirection: "row",
     gap: 16,
+    marginBottom: 16,
   },
   statItem: {
     flex: 1,
@@ -469,6 +756,82 @@ const styles = StyleSheet.create({
   statLabel: {
     fontSize: 12,
     color: Colors.textLight,
+  },
+  statusBreakdown: {
+    marginTop: 12,
+    paddingTop: 12,
+    borderTopWidth: 1,
+    borderTopColor: Colors.border,
+  },
+  breakdownTitle: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: Colors.text,
+    marginBottom: 8,
+  },
+  statusItems: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+  },
+  statusItemSmall: {
+    alignItems: "center",
+    flex: 1,
+  },
+  statusDot: {
+    width: 12,
+    height: 12,
+    borderRadius: 6,
+    marginBottom: 4,
+  },
+  statusCount: {
+    fontSize: 16,
+    fontWeight: "bold",
+    color: Colors.text,
+    marginBottom: 2,
+  },
+  statusLabelSmall: {
+    fontSize: 10,
+    color: Colors.textLight,
+    textAlign: "center",
+  },
+  adminStats: {
+    gap: 12,
+  },
+  adminStatItem: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+    padding: 12,
+    backgroundColor: "#f8fafc",
+    borderRadius: 8,
+  },
+  adminStatText: {
+    flex: 1,
+  },
+  adminStatNumber: {
+    fontSize: 18,
+    fontWeight: "bold",
+    color: Colors.text,
+    marginBottom: 2,
+  },
+  adminStatLabel: {
+    fontSize: 12,
+    color: Colors.textLight,
+  },
+  adminDashboardButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+    backgroundColor: Colors.primary,
+    padding: 12,
+    borderRadius: 8,
+    marginTop: 8,
+  },
+  adminDashboardText: {
+    color: "#fff",
+    fontSize: 14,
+    fontWeight: "600",
   },
   appInfo: {
     gap: 12,

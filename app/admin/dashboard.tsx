@@ -105,9 +105,7 @@ export default function AdminDashboardScreen() {
     return (
       <SafeAreaWrapper>
         <View style={styles.centerContainer}>
-          <Text>
-            Akses ditolak. Hanya admin yang dapat mengakses halaman ini.
-          </Text>
+          <Text>Hanya admin yang dapat mengakses halaman ini.</Text>
         </View>
       </SafeAreaWrapper>
     );
@@ -117,6 +115,7 @@ export default function AdminDashboardScreen() {
     <SafeAreaWrapper>
       <ScrollView
         style={styles.container}
+        contentContainerStyle={{ paddingBottom: 40 }}
         refreshControl={
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
         }
@@ -257,7 +256,7 @@ export default function AdminDashboardScreen() {
 
 const styles = StyleSheet.create({
   container: {
-    flex: 1,
+    flexGrow: 1,
     padding: 16,
   },
   centerContainer: {

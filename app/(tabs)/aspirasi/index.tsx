@@ -104,123 +104,126 @@ export default function AspirasiListScreen() {
 
   return (
     <SafeAreaWrapper>
-      <View style={styles.container}>
-        <View style={styles.header}>
-          <Text style={styles.title}>Daftar Aspirasi</Text>
-          {canCreate && (
-            <TouchableOpacity
-              style={styles.createButton}
-              onPress={() => router.push("/aspirasi/create")}
-            >
-              <Ionicons name="add" size={20} color="#fff" />
-              <Text style={styles.createButtonText}>Buat Baru</Text>
-            </TouchableOpacity>
-          )}
-        </View>
-
-        {/* Status Filter */}
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          style={styles.filterContainer}
-        >
-          {statusFilters.map((filter) => (
-            <TouchableOpacity
-              key={filter.value}
-              style={[
-                styles.filterButton,
-                selectedStatus === filter.value && styles.filterButtonActive,
-              ]}
-              onPress={() => setSelectedStatus(filter.value)}
-            >
-              <Text
-                style={[
-                  styles.filterText,
-                  selectedStatus === filter.value && styles.filterTextActive,
-                ]}
-              >
-                {filter.label}
-              </Text>
-            </TouchableOpacity>
-          ))}
-        </ScrollView>
-
-        <ScrollView
-          style={styles.listContainer}
-          refreshControl={
-            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
-          }
-        >
-          {filteredAspirasi.length === 0 ? (
-            <View style={styles.emptyContainer}>
-              <Ionicons
-                name="chatbubble-outline"
-                size={64}
-                color={Colors.textLight}
-              />
-              <Text style={styles.emptyText}>
-                {selectedStatus === "all"
-                  ? "Belum ada aspirasi"
-                  : `Tidak ada aspirasi dengan status ${getStatusText(
-                      selectedStatus
-                    ).toLowerCase()}`}
-              </Text>
-            </View>
-          ) : (
-            filteredAspirasi.map((item) => (
+      <ScrollView>
+        <View style={styles.container}>
+          <View style={styles.header}>
+            <Text style={styles.title}>Daftar Aspirasi</Text>
+            {canCreate && (
               <TouchableOpacity
-                key={item.id}
-                style={styles.card}
-                onPress={() => router.push(`/aspirasi/${item.id}`)}
+                style={styles.createButton}
+                onPress={() => router.push("/aspirasi/create")}
               >
-                <View style={styles.cardContent}>
-                  <View style={styles.cardHeader}>
-                    <Text style={styles.cardTitle} numberOfLines={2}>
-                      {item.judul}
-                    </Text>
-                    <View
-                      style={[
-                        styles.statusBadge,
-                        { backgroundColor: getStatusColor(item.status) },
-                      ]}
-                    >
-                      <Text style={styles.statusText}>
-                        {getStatusText(item.status)}
+                <Ionicons name="add" size={20} color="#fff" />
+                <Text style={styles.createButtonText}>Buat Baru</Text>
+              </TouchableOpacity>
+            )}
+          </View>
+
+          {/* Status Filter */}
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            style={styles.filterContainer}
+          >
+            {statusFilters.map((filter) => (
+              <TouchableOpacity
+                key={filter.value}
+                style={[
+                  styles.filterButton,
+                  selectedStatus === filter.value && styles.filterButtonActive,
+                ]}
+                onPress={() => setSelectedStatus(filter.value)}
+              >
+                <Text
+                  style={[
+                    styles.filterText,
+                    selectedStatus === filter.value && styles.filterTextActive,
+                  ]}
+                >
+                  {filter.label}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </ScrollView>
+
+          <ScrollView
+            style={styles.listContainer}
+            refreshControl={
+              <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+            }
+          >
+            {filteredAspirasi.length === 0 ? (
+              <View style={styles.emptyContainer}>
+                <Ionicons
+                  name="chatbubble-outline"
+                  size={64}
+                  color={Colors.textLight}
+                />
+                <Text style={styles.emptyText}>
+                  {selectedStatus === "all"
+                    ? "Belum ada aspirasi"
+                    : `Tidak ada aspirasi dengan status ${getStatusText(
+                        selectedStatus
+                      ).toLowerCase()}`}
+                </Text>
+              </View>
+            ) : (
+              filteredAspirasi.map((item) => (
+                <TouchableOpacity
+                  key={item.id}
+                  style={styles.card}
+                  onPress={() => router.push(`/aspirasi/${item.id}`)}
+                >
+                  <View style={styles.cardContent}>
+                    <View style={styles.cardHeader}>
+                      <Text style={styles.cardTitle} numberOfLines={2}>
+                        {item.judul}
                       </Text>
+                      <View
+                        style={[
+                          styles.statusBadge,
+                          { backgroundColor: getStatusColor(item.status) },
+                        ]}
+                      >
+                        <Text style={styles.statusText}>
+                          {getStatusText(item.status)}
+                        </Text>
+                      </View>
                     </View>
-                  </View>
 
-                  <Text style={styles.cardCategory}>{item.kategori}</Text>
+                    <Text style={styles.cardCategory}>{item.kategori}</Text>
 
-                  <Text style={styles.cardDescription} numberOfLines={3}>
-                    {item.deskripsi}
-                  </Text>
-
-                  <View style={styles.cardFooter}>
-                    <Text style={styles.cardDate}>
-                      {formatDate(item.created_at)}
+                    <Text style={styles.cardDescription} numberOfLines={3}>
+                      {item.deskripsi}
                     </Text>
-                    {user?.role !== "masyarakat" && (
-                      <Text style={styles.cardUser}>
-                        oleh {item.profiles?.full_name || item.profiles?.email}
+
+                    <View style={styles.cardFooter}>
+                      <Text style={styles.cardDate}>
+                        {formatDate(item.created_at)}
                       </Text>
+                      {user?.role !== "masyarakat" && (
+                        <Text style={styles.cardUser}>
+                          oleh{" "}
+                          {item.profiles?.full_name || item.profiles?.email}
+                        </Text>
+                      )}
+                    </View>
+
+                    {item.tanggapan && (
+                      <View style={styles.tanggapanPreview}>
+                        <Text style={styles.tanggapanLabel}>Tanggapan:</Text>
+                        <Text style={styles.tanggapanText} numberOfLines={2}>
+                          {item.tanggapan}
+                        </Text>
+                      </View>
                     )}
                   </View>
-
-                  {item.tanggapan && (
-                    <View style={styles.tanggapanPreview}>
-                      <Text style={styles.tanggapanLabel}>Tanggapan:</Text>
-                      <Text style={styles.tanggapanText} numberOfLines={2}>
-                        {item.tanggapan}
-                      </Text>
-                    </View>
-                  )}
-                </View>
-              </TouchableOpacity>
-            ))
-          )}
-        </ScrollView>
-      </View>
+                </TouchableOpacity>
+              ))
+            )}
+          </ScrollView>
+        </View>
+      </ScrollView>
     </SafeAreaWrapper>
   );
 }
