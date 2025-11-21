@@ -25,6 +25,12 @@ export default function RegisterScreen() {
   });
   const [loading, setLoading] = useState(false);
 
+  const phoneRegex = /^[0-9]{10,14}$/;
+
+  const validatePhone = (phone: string): boolean => {
+    return phoneRegex.test(phone);
+  };
+
   const handleChange = (field: string, value: string) => {
     setForm((prev) => ({ ...prev, [field]: value }));
   };
@@ -32,6 +38,14 @@ export default function RegisterScreen() {
   const handleRegister = async () => {
     if (!form.fullName || !form.email || !form.phone || !form.password) {
       Alert.alert("Error", "Harap isi semua field");
+      return;
+    }
+
+    if (!validatePhone(form.phone)) {
+      Alert.alert(
+        "Error",
+        "Format nomor telepon tidak valid. Contoh: 081234567890"
+      );
       return;
     }
 

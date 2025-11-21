@@ -1,6 +1,7 @@
 import { Ionicons } from "@expo/vector-icons";
+import { useFocusEffect } from "@react-navigation/native";
 import { router } from "expo-router";
-import React, { useEffect, useState } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import {
   Alert,
   RefreshControl,
@@ -68,9 +69,11 @@ export default function AspirasiListScreen() {
     }
   };
 
-  useEffect(() => {
-    fetchAspirasi();
-  }, [user]);
+  useFocusEffect(
+    useCallback(() => {
+      fetchAspirasi();
+    }, [])
+  );
 
   useEffect(() => {
     applyFilter(aspirasi, selectedStatus);

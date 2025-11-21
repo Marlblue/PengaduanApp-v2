@@ -3,6 +3,8 @@ import React, { useState } from "react";
 import {
   ActivityIndicator,
   Alert,
+  KeyboardAvoidingView,
+  Platform,
   ScrollView,
   StyleSheet,
   Text,
@@ -83,100 +85,110 @@ export default function CreateAspirasiScreen() {
 
   return (
     <SafeAreaWrapper>
-      <ScrollView style={styles.container}>
-        <View style={styles.header}>
-          <Text style={styles.title}>Sampaikan Aspirasi</Text>
-          <Text style={styles.subtitle}>
-            Berikan saran dan masukan untuk kemajuan bersama
-          </Text>
-        </View>
-
-        <View style={styles.form}>
-          {/* Judul */}
-          <View style={styles.field}>
-            <Text style={styles.label}>Judul Aspirasi *</Text>
-            <TextInput
-              style={styles.input}
-              placeholder="Masukkan judul aspirasi"
-              value={form.judul}
-              onChangeText={(value) => handleChange("judul", value)}
-            />
+      <KeyboardAvoidingView
+        style={{ flex: 1 }}
+        behavior={Platform.OS === "ios" ? "padding" : "height"}
+        keyboardVerticalOffset={Platform.OS === "ios" ? 80 : 0}
+      >
+        <ScrollView
+          style={styles.container}
+          keyboardShouldPersistTaps="handled"
+          contentContainerStyle={{ paddingBottom: 60 }}
+        >
+          <View style={styles.header}>
+            <Text style={styles.title}>Sampaikan Aspirasi</Text>
+            <Text style={styles.subtitle}>
+              Berikan saran dan masukan untuk kemajuan bersama
+            </Text>
           </View>
 
-          {/* Kategori */}
-          <View style={styles.field}>
-            <Text style={styles.label}>Kategori *</Text>
-            <View style={styles.kategoriContainer}>
-              {KATEGORI_ASPIRASI.map((kategori) => (
-                <TouchableOpacity
-                  key={kategori.value}
-                  style={[
-                    styles.kategoriButton,
-                    form.kategori === kategori.value &&
-                      styles.kategoriButtonActive,
-                  ]}
-                  onPress={() => handleChange("kategori", kategori.value)}
-                >
-                  <Text
-                    style={[
-                      styles.kategoriText,
-                      form.kategori === kategori.value &&
-                        styles.kategoriTextActive,
-                    ]}
-                  >
-                    {kategori.label}
-                  </Text>
-                </TouchableOpacity>
-              ))}
+          <View style={styles.form}>
+            {/* Judul */}
+            <View style={styles.field}>
+              <Text style={styles.label}>Judul Aspirasi *</Text>
+              <TextInput
+                style={styles.input}
+                placeholder="Masukkan judul aspirasi"
+                value={form.judul}
+                onChangeText={(value) => handleChange("judul", value)}
+              />
             </View>
-          </View>
 
-          {/* Deskripsi */}
-          <View style={styles.field}>
-            <Text style={styles.label}>Deskripsi Aspirasi *</Text>
-            <Text style={styles.helperText}>
-              Jelaskan secara detail aspirasi Anda minimal 10 karakter
-            </Text>
-            <TextInput
-              style={[styles.input, styles.textArea]}
-              placeholder="Jelaskan detail aspirasi Anda... (minimal 10 karakter)"
-              value={form.deskripsi}
-              onChangeText={(value) => handleChange("deskripsi", value)}
-              multiline
-              numberOfLines={6}
-              textAlignVertical="top"
-            />
-            <Text style={styles.charCount}>
-              {form.deskripsi.length} karakter
-            </Text>
-          </View>
+            {/* Kategori */}
+            <View style={styles.field}>
+              <Text style={styles.label}>Kategori *</Text>
+              <View style={styles.kategoriContainer}>
+                {KATEGORI_ASPIRASI.map((kategori) => (
+                  <TouchableOpacity
+                    key={kategori.value}
+                    style={[
+                      styles.kategoriButton,
+                      form.kategori === kategori.value &&
+                        styles.kategoriButtonActive,
+                    ]}
+                    onPress={() => handleChange("kategori", kategori.value)}
+                  >
+                    <Text
+                      style={[
+                        styles.kategoriText,
+                        form.kategori === kategori.value &&
+                          styles.kategoriTextActive,
+                      ]}
+                    >
+                      {kategori.label}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            </View>
 
-          {/* Submit Button */}
-          <TouchableOpacity
-            style={[
-              styles.submitButton,
-              (loading ||
+            {/* Deskripsi */}
+            <View style={styles.field}>
+              <Text style={styles.label}>Deskripsi Aspirasi *</Text>
+              <Text style={styles.helperText}>
+                Jelaskan secara detail aspirasi Anda minimal 10 karakter
+              </Text>
+              <TextInput
+                style={[styles.input, styles.textArea]}
+                placeholder="Jelaskan detail aspirasi Anda... (minimal 10 karakter)"
+                value={form.deskripsi}
+                onChangeText={(value) => handleChange("deskripsi", value)}
+                multiline
+                numberOfLines={6}
+                textAlignVertical="top"
+              />
+              <Text style={styles.charCount}>
+                {form.deskripsi.length} karakter
+              </Text>
+            </View>
+
+            {/* Submit Button */}
+            <TouchableOpacity
+              style={[
+                styles.submitButton,
+                (loading ||
+                  !form.judul ||
+                  !form.kategori ||
+                  form.deskripsi.length < 10) &&
+                  styles.submitButtonDisabled,
+              ]}
+              onPress={handleSubmit}
+              disabled={
+                loading ||
                 !form.judul ||
                 !form.kategori ||
-                form.deskripsi.length < 10) &&
-                styles.submitButtonDisabled,
-            ]}
-            onPress={handleSubmit}
-            disabled={
-              loading ||
-              !form.judul ||
-              !form.kategori ||
-              form.deskripsi.length < 10
-            }
-          >
-            {loading ? (
-              <ActivityIndicator size="small" color="#fff" />
-            ) : (
-              <Text style={styles.submitButtonText}>Sampaikan Aspirasi</Text>
-            )}
-          </TouchableOpacity>
-        </View>
-      </ScrollView>
+                form.deskripsi.length < 10
+              }
+            >
+              {loading ? (
+                <ActivityIndicator size="small" color="#fff" />
+              ) : (
+                <Text style={styles.submitButtonText}>Sampaikan Aspirasi</Text>
+              )}
+            </TouchableOpacity>
+          </View>
+        </ScrollView>
+      </KeyboardAvoidingView>
     </SafeAreaWrapper>
   );
 }

@@ -85,7 +85,10 @@ export default function AspirasiDetailScreen() {
 
   return (
     <SafeAreaWrapper>
-      <ScrollView style={styles.container}>
+      <ScrollView
+        style={styles.container}
+        contentContainerStyle={{ paddingBottom: 40 }}
+      >
         {/* Header dengan judul dan status */}
         <View style={styles.header}>
           <View style={styles.titleContainer}>

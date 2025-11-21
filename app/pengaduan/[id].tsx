@@ -104,7 +104,10 @@ export default function PengaduanDetailScreen() {
 
   return (
     <SafeAreaWrapper>
-      <ScrollView style={styles.container}>
+      <ScrollView
+        style={styles.container}
+        contentContainerStyle={{ paddingBottom: 40 }}
+      >
         {/* Header dengan judul dan status */}
         <View style={styles.header}>
           <View style={styles.titleContainer}>
@@ -305,7 +308,7 @@ export default function PengaduanDetailScreen() {
 
 const styles = StyleSheet.create({
   container: {
-    flex: 1,
+    flexGrow: 1,
     padding: 16,
   },
   centerContainer: {

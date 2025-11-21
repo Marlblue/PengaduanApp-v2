@@ -1,5 +1,6 @@
 import { SearchBar } from "@/components/SearchBar";
 import { Ionicons } from "@expo/vector-icons";
+import { useFocusEffect } from "@react-navigation/native";
 import { router } from "expo-router";
 import React, { useEffect, useState } from "react";
 import {
@@ -121,6 +122,12 @@ export default function PengaduanListScreen() {
   useEffect(() => {
     fetchPengaduan();
   }, [user]);
+
+  useFocusEffect(
+    React.useCallback(() => {
+      fetchPengaduan();
+    }, [fetchPengaduan])
+  );
 
   useEffect(() => {
     applyFilters(

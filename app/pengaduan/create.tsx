@@ -7,6 +7,8 @@ import {
   ActivityIndicator,
   Alert,
   Image,
+  KeyboardAvoidingView,
+  Platform,
   ScrollView,
   StyleSheet,
   Text,
@@ -145,179 +147,195 @@ export default function CreatePengaduanScreen() {
 
   return (
     <SafeAreaWrapper>
-      <ScrollView style={styles.container}>
-        <View style={styles.header}>
-          <Text style={styles.title}>Buat Pengaduan Baru</Text>
-          <Text style={styles.subtitle}>
-            Laporkan masalah dengan melampirkan foto dan lokasi
-          </Text>
-        </View>
-
-        <View style={styles.form}>
-          {/* Judul */}
-          <View style={styles.field}>
-            <Text style={styles.label}>Judul Pengaduan *</Text>
-            <TextInput
-              style={styles.input}
-              placeholder="Masukkan judul pengaduan"
-              value={form.judul}
-              onChangeText={(value) => handleChange("judul", value)}
-            />
+      <KeyboardAvoidingView
+        style={{ flex: 1 }}
+        behavior={Platform.OS === "ios" ? "padding" : "height"}
+        keyboardVerticalOffset={Platform.OS === "ios" ? 80 : 0}
+      >
+        <ScrollView
+          style={styles.container}
+          keyboardShouldPersistTaps="handled"
+          contentContainerStyle={{ paddingBottom: 60 }}
+        >
+          <View style={styles.header}>
+            <Text style={styles.title}>Buat Pengaduan Baru</Text>
+            <Text style={styles.subtitle}>
+              Laporkan masalah dengan melampirkan foto dan lokasi
+            </Text>
           </View>
 
-          {/* Kategori */}
-          <View style={styles.field}>
-            <Text style={styles.label}>Kategori *</Text>
-            <View style={styles.kategoriContainer}>
-              {KATEGORI_PENGADUAN.map((kategori) => (
-                <TouchableOpacity
-                  key={kategori.value}
-                  style={[
-                    styles.kategoriButton,
-                    form.kategori === kategori.value &&
-                      styles.kategoriButtonActive,
-                  ]}
-                  onPress={() => handleChange("kategori", kategori.value)}
-                >
-                  <Text
-                    style={[
-                      styles.kategoriText,
-                      form.kategori === kategori.value &&
-                        styles.kategoriTextActive,
-                    ]}
-                  >
-                    {kategori.label}
-                  </Text>
-                </TouchableOpacity>
-              ))}
+          <View style={styles.form}>
+            {/* Judul */}
+            <View style={styles.field}>
+              <Text style={styles.label}>Judul Pengaduan *</Text>
+              <TextInput
+                style={styles.input}
+                placeholder="Masukkan judul pengaduan"
+                value={form.judul}
+                onChangeText={(value) => handleChange("judul", value)}
+              />
             </View>
-          </View>
 
-          {/* Deskripsi */}
-          <View style={styles.field}>
-            <Text style={styles.label}>Deskripsi *</Text>
-            <TextInput
-              style={[styles.input, styles.textArea]}
-              placeholder="Jelaskan detail pengaduan Anda..."
-              value={form.deskripsi}
-              onChangeText={(value) => handleChange("deskripsi", value)}
-              multiline
-              numberOfLines={4}
-              textAlignVertical="top"
-            />
-          </View>
-
-          {/* Foto */}
-          <View style={styles.field}>
-            <Text style={styles.label}>Foto Pengaduan *</Text>
-            <Text style={styles.helperText}>
-              Foto wajib diambil untuk bukti pengaduan
-            </Text>
-
-            {selectedImage ? (
-              <View style={styles.imagePreviewContainer}>
-                <Image
-                  source={{ uri: selectedImage.uri }}
-                  style={styles.imagePreview}
-                  resizeMode="cover"
-                />
-                <TouchableOpacity
-                  style={styles.removeImageButton}
-                  onPress={clearImage}
-                >
-                  <Ionicons name="close" size={20} color="#fff" />
-                </TouchableOpacity>
-              </View>
-            ) : (
-              <View style={styles.imageButtons}>
-                <TouchableOpacity
-                  style={styles.imageButton}
-                  onPress={() => pickImage(true)}
-                >
-                  <Ionicons name="camera" size={24} color={Colors.primary} />
-                  <Text style={styles.imageButtonText}>Ambil Foto</Text>
-                </TouchableOpacity>
-
-                <TouchableOpacity
-                  style={styles.imageButton}
-                  onPress={() => pickImage(false)}
-                >
-                  <Ionicons name="images" size={24} color={Colors.primary} />
-                  <Text style={styles.imageButtonText}>Pilih dari Galeri</Text>
-                </TouchableOpacity>
-              </View>
-            )}
-          </View>
-
-          {/* Lokasi */}
-          <View style={styles.field}>
-            <Text style={styles.label}>Lokasi *</Text>
-            <Text style={styles.helperText}>
-              Lokasi wajib diambil untuk mengetahui titik kejadian
-            </Text>
-
-            {currentLocation ? (
-              <View style={styles.locationContainer}>
-                <View style={styles.locationInfo}>
-                  <Ionicons name="location" size={20} color={Colors.primary} />
-                  <View style={styles.locationText}>
-                    <Text style={styles.locationAddress}>
-                      {currentLocation.address}
+            {/* Kategori */}
+            <View style={styles.field}>
+              <Text style={styles.label}>Kategori *</Text>
+              <View style={styles.kategoriContainer}>
+                {KATEGORI_PENGADUAN.map((kategori) => (
+                  <TouchableOpacity
+                    key={kategori.value}
+                    style={[
+                      styles.kategoriButton,
+                      form.kategori === kategori.value &&
+                        styles.kategoriButtonActive,
+                    ]}
+                    onPress={() => handleChange("kategori", kategori.value)}
+                  >
+                    <Text
+                      style={[
+                        styles.kategoriText,
+                        form.kategori === kategori.value &&
+                          styles.kategoriTextActive,
+                      ]}
+                    >
+                      {kategori.label}
                     </Text>
-                    <Text style={styles.locationCoordinates}>
-                      {currentLocation.latitude.toFixed(6)},{" "}
-                      {currentLocation.longitude.toFixed(6)}
-                    </Text>
-                  </View>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            </View>
+
+            {/* Deskripsi */}
+            <View style={styles.field}>
+              <Text style={styles.label}>Deskripsi *</Text>
+              <TextInput
+                style={[styles.input, styles.textArea]}
+                placeholder="Jelaskan detail pengaduan Anda..."
+                value={form.deskripsi}
+                onChangeText={(value) => handleChange("deskripsi", value)}
+                multiline
+                numberOfLines={4}
+                textAlignVertical="top"
+              />
+            </View>
+
+            {/* Foto */}
+            <View style={styles.field}>
+              <Text style={styles.label}>Foto Pengaduan *</Text>
+              <Text style={styles.helperText}>
+                Foto wajib diambil untuk bukti pengaduan
+              </Text>
+
+              {selectedImage ? (
+                <View style={styles.imagePreviewContainer}>
+                  <Image
+                    source={{ uri: selectedImage.uri }}
+                    style={styles.imagePreview}
+                    resizeMode="cover"
+                  />
+                  <TouchableOpacity
+                    style={styles.removeImageButton}
+                    onPress={clearImage}
+                  >
+                    <Ionicons name="close" size={20} color="#fff" />
+                  </TouchableOpacity>
                 </View>
-                <TouchableOpacity
-                  style={styles.removeLocationButton}
-                  onPress={clearLocation}
-                >
-                  <Text style={styles.removeLocationText}>Hapus</Text>
-                </TouchableOpacity>
-              </View>
-            ) : (
-              <TouchableOpacity
-                style={[
-                  styles.locationButton,
-                  loadingLocation && styles.locationButtonDisabled,
-                ]}
-                onPress={getCurrentLocation}
-                disabled={loadingLocation}
-              >
-                {loadingLocation ? (
-                  <ActivityIndicator size="small" color="#fff" />
-                ) : (
-                  <>
-                    <Ionicons name="locate" size={20} color="#fff" />
-                    <Text style={styles.locationButtonText}>
-                      Ambil Lokasi Saat Ini
-                    </Text>
-                  </>
-                )}
-              </TouchableOpacity>
-            )}
-          </View>
+              ) : (
+                <View style={styles.imageButtons}>
+                  <TouchableOpacity
+                    style={styles.imageButton}
+                    onPress={() => pickImage(true)}
+                  >
+                    <Ionicons name="camera" size={24} color={Colors.primary} />
+                    <Text style={styles.imageButtonText}>Ambil Foto</Text>
+                  </TouchableOpacity>
 
-          {/* Submit Button */}
-          <TouchableOpacity
-            style={[
-              styles.submitButton,
-              (loading || !selectedImage || !currentLocation) &&
-                styles.submitButtonDisabled,
-            ]}
-            onPress={handleSubmit}
-            disabled={loading || !selectedImage || !currentLocation}
-          >
-            {loading ? (
-              <ActivityIndicator size="small" color="#fff" />
-            ) : (
-              <Text style={styles.submitButtonText}>Kirim Pengaduan</Text>
-            )}
-          </TouchableOpacity>
-        </View>
-      </ScrollView>
+                  <TouchableOpacity
+                    style={styles.imageButton}
+                    onPress={() => pickImage(false)}
+                  >
+                    <Ionicons name="images" size={24} color={Colors.primary} />
+                    <Text style={styles.imageButtonText}>
+                      Pilih dari Galeri
+                    </Text>
+                  </TouchableOpacity>
+                </View>
+              )}
+            </View>
+
+            {/* Lokasi */}
+            <View style={styles.field}>
+              <Text style={styles.label}>Lokasi *</Text>
+              <Text style={styles.helperText}>
+                Lokasi wajib diambil untuk mengetahui titik kejadian
+              </Text>
+
+              {currentLocation ? (
+                <View style={styles.locationContainer}>
+                  <View style={styles.locationInfo}>
+                    <Ionicons
+                      name="location"
+                      size={20}
+                      color={Colors.primary}
+                    />
+                    <View style={styles.locationText}>
+                      <Text style={styles.locationAddress}>
+                        {currentLocation.address}
+                      </Text>
+                      <Text style={styles.locationCoordinates}>
+                        {currentLocation.latitude.toFixed(6)},{" "}
+                        {currentLocation.longitude.toFixed(6)}
+                      </Text>
+                    </View>
+                  </View>
+                  <TouchableOpacity
+                    style={styles.removeLocationButton}
+                    onPress={clearLocation}
+                  >
+                    <Text style={styles.removeLocationText}>Hapus</Text>
+                  </TouchableOpacity>
+                </View>
+              ) : (
+                <TouchableOpacity
+                  style={[
+                    styles.locationButton,
+                    loadingLocation && styles.locationButtonDisabled,
+                  ]}
+                  onPress={getCurrentLocation}
+                  disabled={loadingLocation}
+                >
+                  {loadingLocation ? (
+                    <ActivityIndicator size="small" color="#fff" />
+                  ) : (
+                    <>
+                      <Ionicons name="locate" size={20} color="#fff" />
+                      <Text style={styles.locationButtonText}>
+                        Ambil Lokasi Saat Ini
+                      </Text>
+                    </>
+                  )}
+                </TouchableOpacity>
+              )}
+            </View>
+
+            {/* Submit Button */}
+            <TouchableOpacity
+              style={[
+                styles.submitButton,
+                (loading || !selectedImage || !currentLocation) &&
+                  styles.submitButtonDisabled,
+              ]}
+              onPress={handleSubmit}
+              disabled={loading || !selectedImage || !currentLocation}
+            >
+              {loading ? (
+                <ActivityIndicator size="small" color="#fff" />
+              ) : (
+                <Text style={styles.submitButtonText}>Kirim Pengaduan</Text>
+              )}
+            </TouchableOpacity>
+          </View>
+        </ScrollView>
+      </KeyboardAvoidingView>
     </SafeAreaWrapper>
   );
 }
