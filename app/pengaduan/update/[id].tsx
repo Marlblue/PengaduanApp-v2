@@ -1,6 +1,6 @@
 import { Ionicons } from "@expo/vector-icons";
 import { router, useLocalSearchParams } from "expo-router";
-import React, { useEffect, useState } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
@@ -26,12 +26,11 @@ interface PengaduanWithDetails extends Pengaduan {
   profiles: Profile;
 }
 
-// Definisikan alur status yang diperbolehkan
 const ALLOWED_STATUS_TRANSITIONS: Record<PengaduanStatus, PengaduanStatus[]> = {
-  pending: ["diproses", "ditolak"], // Dari pending hanya bisa ke diproses atau ditolak
-  diproses: ["selesai", "ditolak"], // Dari diproses hanya bisa ke selesai atau ditolak
-  selesai: [], // Dari selesai TIDAK BISA diubah lagi
-  ditolak: [], // Dari ditolak TIDAK BISA diubah lagi
+  pending: ["diproses", "ditolak"],
+  diproses: ["selesai", "ditolak"],
+  selesai: [],
+  ditolak: [],
 };
 
 const STATUS_OPTIONS: {
@@ -78,24 +77,17 @@ export default function UpdatePengaduanScreen() {
     tanggapan: "",
   });
 
-  const fetchPengaduan = async () => {
+  const fetchPengaduan = useCallback(async () => {
     if (!id) return;
 
     try {
       const { data, error } = await supabase
         .from("pengaduan")
-        .select(
-          `
-          *,
-          profiles:user_id(*)
-        `
-        )
+        .select(`*, profiles:user_id(*)`)
         .eq("id", id)
         .single();
 
-      if (error) {
-        throw error;
-      }
+      if (error) throw error;
 
       setPengaduan(data);
       setForm({
@@ -112,39 +104,28 @@ export default function UpdatePengaduanScreen() {
     } finally {
       setLoading(false);
     }
-  };
-
-  useEffect(() => {
-    if (id) {
-      fetchPengaduan();
-    }
   }, [id]);
 
-  // Cek apakah status sudah final (selesai/ditolak)
+  useEffect(() => {
+    fetchPengaduan();
+  }, [fetchPengaduan]);
+
   const isFinalStatus = (status: PengaduanStatus): boolean => {
     return status === "selesai" || status === "ditolak";
   };
 
-  // Cek apakah status bisa diubah
   const canChangeStatus = (
     currentStatus: PengaduanStatus,
     newStatus: PengaduanStatus
   ): boolean => {
-    // Jika status saat ini sudah final, tidak bisa diubah
-    if (isFinalStatus(currentStatus)) {
-      return false;
-    }
-
-    // Cek apakah transisi diperbolehkan
+    if (isFinalStatus(currentStatus)) return false;
     return ALLOWED_STATUS_TRANSITIONS[currentStatus].includes(newStatus);
   };
 
-  // Dapatkan opsi status yang diperbolehkan berdasarkan status saat ini
   const getAllowedStatusOptions = (currentStatus: PengaduanStatus) => {
     if (isFinalStatus(currentStatus)) {
-      return STATUS_OPTIONS.filter((opt) => opt.value === currentStatus); // Hanya tampilkan status saat ini
+      return STATUS_OPTIONS.filter((opt) => opt.value === currentStatus);
     }
-
     const allowedTransitions = ALLOWED_STATUS_TRANSITIONS[currentStatus];
     return STATUS_OPTIONS.filter(
       (opt) =>
@@ -152,19 +133,16 @@ export default function UpdatePengaduanScreen() {
     );
   };
 
-  // Cek apakah ada perubahan
   const hasChanges =
     form.status !== originalData.status ||
     form.tanggapan !== originalData.tanggapan;
 
-  // Validasi form berdasarkan status
   const validateForm = (): boolean => {
     if (!hasChanges) {
       Alert.alert("Info", "Tidak ada perubahan yang disimpan");
       return false;
     }
 
-    // Jika status sudah final, tidak boleh diubah
     if (isFinalStatus(originalData.status)) {
       Alert.alert(
         "Error",
@@ -173,7 +151,6 @@ export default function UpdatePengaduanScreen() {
       return false;
     }
 
-    // Validasi transisi status
     if (!canChangeStatus(originalData.status, form.status)) {
       Alert.alert(
         "Error",
@@ -184,27 +161,27 @@ export default function UpdatePengaduanScreen() {
       return false;
     }
 
-    // Jika status berubah dari pending ke diproses/selesai/ditolak, wajib ada tanggapan
     if (
       originalData.status === "pending" &&
       form.status !== "pending" &&
-      !form.tanggapan.trim()
+      form.tanggapan.trim().length < 10
     ) {
       Alert.alert(
         "Error",
-        "Harap berikan tanggapan untuk perubahan status ini"
+        "Tanggapan minimal 10 karakter untuk perubahan status ini"
       );
       return false;
     }
 
-    // Jika status diubah ke selesai atau ditolak, wajib ada tanggapan
     if (
       (form.status === "selesai" || form.status === "ditolak") &&
-      !form.tanggapan.trim()
+      form.tanggapan.trim().length < 10
     ) {
       Alert.alert(
         "Error",
-        `Harap berikan tanggapan untuk status "${getStatusText(form.status)}"`
+        `Tanggapan minimal 10 karakter untuk status "${getStatusText(
+          form.status
+        )}"`
       );
       return false;
     }
@@ -214,33 +191,21 @@ export default function UpdatePengaduanScreen() {
 
   const handleSubmit = async () => {
     if (!pengaduan || !user) return;
-
-    if (!validateForm()) {
-      return;
-    }
+    if (!validateForm()) return;
 
     setUpdating(true);
     try {
       const updateData: any = {
         status: form.status,
         updated_at: new Date().toISOString(),
+        petugas_id: user.id, // ✅ SELALU update petugas ke user yang sedang update
       };
 
-      // Tambahkan tanggapan jika ada
       if (form.tanggapan.trim()) {
         updateData.tanggapan = form.tanggapan.trim();
       }
 
-      // Assign petugas jika status diubah dari pending dan belum ada petugas
-      if (
-        pengaduan.status === "pending" &&
-        form.status !== "pending" &&
-        !pengaduan.petugas_id
-      ) {
-        updateData.petugas_id = user.id;
-      }
-
-      // Jika status dikembalikan ke pending, hapus petugas dan tanggapan
+      // Jika status dikembalikan ke pending, reset petugas dan tanggapan
       if (form.status === "pending") {
         updateData.petugas_id = null;
         updateData.tanggapan = null;
@@ -251,21 +216,14 @@ export default function UpdatePengaduanScreen() {
         .update(updateData)
         .eq("id", pengaduan.id);
 
-      if (error) {
-        throw error;
-      }
+      if (error) throw error;
 
       Alert.alert(
         "Sukses",
         `Status pengaduan berhasil diubah menjadi "${getStatusText(
           form.status
         )}"`,
-        [
-          {
-            text: "OK",
-            onPress: () => router.back(),
-          },
-        ]
+        [{ text: "OK", onPress: () => router.back() }]
       );
     } catch (error) {
       console.error("Error updating pengaduan:", error);
@@ -276,7 +234,6 @@ export default function UpdatePengaduanScreen() {
   };
 
   const handleStatusChange = (newStatus: PengaduanStatus) => {
-    // Jika status saat ini sudah final, jangan izinkan perubahan
     if (isFinalStatus(originalData.status)) {
       Alert.alert(
         "Info",
@@ -285,7 +242,6 @@ export default function UpdatePengaduanScreen() {
       return;
     }
 
-    // Validasi transisi status
     if (!canChangeStatus(originalData.status, newStatus)) {
       Alert.alert(
         "Error",
@@ -297,8 +253,6 @@ export default function UpdatePengaduanScreen() {
     }
 
     setForm((prev) => ({ ...prev, status: newStatus }));
-
-    // Reset tanggapan jika status dikembalikan ke pending
     if (newStatus === "pending") {
       setForm((prev) => ({ ...prev, tanggapan: "" }));
     }
@@ -344,7 +298,10 @@ export default function UpdatePengaduanScreen() {
 
   return (
     <SafeAreaWrapper>
-      <ScrollView style={styles.container}>
+      <ScrollView
+        style={styles.container}
+        contentContainerStyle={styles.contentContainer}
+      >
         <View style={styles.header}>
           <Text style={styles.title}>Update Status Pengaduan</Text>
           <Text style={styles.subtitle}>
@@ -392,7 +349,6 @@ export default function UpdatePengaduanScreen() {
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Update Status</Text>
 
-          {/* Status Description */}
           <View style={styles.statusDescription}>
             <Text style={styles.statusDescriptionText}>
               {getStatusDescription(form.status)}
@@ -407,7 +363,6 @@ export default function UpdatePengaduanScreen() {
                 style={[
                   styles.statusOption,
                   form.status === option.value && styles.statusOptionActive,
-                  // Non-aktifkan status yang sama dengan current dan yang sudah final
                   pengaduan.status === option.value &&
                     styles.statusOptionCurrent,
                   isFinalStatus(pengaduan.status) &&
@@ -525,11 +480,11 @@ export default function UpdatePengaduanScreen() {
             </Text>
             <Text style={styles.helperText}>
               {form.status === "diproses" &&
-                "Berikan informasi tentang tindakan yang sedang dilakukan"}
+                "Berikan informasi tentang tindakan yang sedang dilakukan (min. 10 karakter)"}
               {form.status === "selesai" &&
-                "Jelaskan penyelesaian yang telah dilakukan"}
+                "Jelaskan penyelesaian yang telah dilakukan (min. 10 karakter)"}
               {form.status === "ditolak" &&
-                "Berikan alasan penolakan pengaduan dengan jelas"}
+                "Berikan alasan penolakan pengaduan dengan jelas (min. 10 karakter)"}
               {form.status === "pending" &&
                 "Tanggapan akan dihapus jika status dikembalikan ke pending"}
             </Text>
@@ -544,7 +499,7 @@ export default function UpdatePengaduanScreen() {
                   ? "Status sudah final, tidak dapat memberikan tanggapan..."
                   : form.status === "pending"
                   ? "Tanggapan tidak diperlukan untuk status pending..."
-                  : "Tulis tanggapan Anda..."
+                  : "Tulis tanggapan Anda (minimal 10 karakter)..."
               }
               value={form.tanggapan}
               onChangeText={(value) =>
@@ -557,16 +512,12 @@ export default function UpdatePengaduanScreen() {
                 !isFinalStatus(pengaduan.status) && form.status !== "pending"
               }
             />
-            {form.status === "pending" && !isFinalStatus(pengaduan.status) && (
-              <Text style={styles.disabledNote}>
-                Tanggapan tidak dapat ditambahkan untuk status pending
-              </Text>
-            )}
-            {isFinalStatus(pengaduan.status) && (
-              <Text style={styles.disabledNote}>
-                Status sudah final, tidak dapat mengubah tanggapan
-              </Text>
-            )}
+            <Text style={styles.charCount}>
+              {form.tanggapan.length} karakter
+              {form.status !== "pending" &&
+                !isFinalStatus(pengaduan.status) &&
+                " (minimal 10)"}
+            </Text>
           </View>
         </View>
 
@@ -608,7 +559,10 @@ export default function UpdatePengaduanScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+  },
+  contentContainer: {
     padding: 16,
+    paddingBottom: 40,
   },
   centerContainer: {
     flex: 1,
@@ -880,16 +834,15 @@ const styles = StyleSheet.create({
   textArea: {
     minHeight: 100,
   },
-  disabledNote: {
+  charCount: {
     fontSize: 12,
     color: Colors.textLight,
-    fontStyle: "italic",
-    marginTop: 4,
+    textAlign: "right",
   },
   actions: {
     flexDirection: "row",
     gap: 12,
-    marginBottom: 24,
+    marginTop: 8,
   },
   cancelButton: {
     flex: 1,

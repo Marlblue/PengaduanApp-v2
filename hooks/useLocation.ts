@@ -17,35 +17,60 @@ export function useLocation() {
     try {
       const hasPermission = await requestLocationPermission();
       if (!hasPermission) {
+        Alert.alert(
+          "Izin Lokasi Ditolak",
+          "Aktifkan izin lokasi di pengaturan untuk menggunakan fitur ini."
+        );
+        setLoadingLocation(false);
+        return null;
+      }
+
+      // 🔍 Tambahan penting: cek apakah GPS / Location Service aktif
+      const locationEnabled = await Location.hasServicesEnabledAsync();
+      if (!locationEnabled) {
+        Alert.alert(
+          "GPS Tidak Aktif",
+          "Silakan aktifkan GPS / Lokasi di perangkat Anda."
+        );
         setLoadingLocation(false);
         return null;
       }
 
       const location = await Location.getCurrentPositionAsync({
-        accuracy: Location.Accuracy.Balanced,
+        accuracy: Location.Accuracy.High,
       });
 
-      // Reverse geocoding untuk mendapatkan alamat
-      const address = await Location.reverseGeocodeAsync({
-        latitude: location.coords.latitude,
-        longitude: location.coords.longitude,
-      });
+      let addressText = "Alamat tidak ditemukan";
+      try {
+        const address = await Location.reverseGeocodeAsync({
+          latitude: location.coords.latitude,
+          longitude: location.coords.longitude,
+        });
+
+        if (address && address.length > 0) {
+          const a = address[0];
+          addressText = `${a.street || ""} ${a.name || ""}, ${
+            a.city || ""
+          }`.trim();
+        }
+      } catch (geocodeError) {
+        console.log("Reverse geocode gagal:", geocodeError);
+      }
 
       const locationData: LocationData = {
         latitude: location.coords.latitude,
         longitude: location.coords.longitude,
-        address: address[0]
-          ? `${address[0].street || ""} ${address[0].name || ""}, ${
-              address[0].city || ""
-            }`
-          : "Alamat tidak ditemukan",
+        address: addressText,
       };
 
       setCurrentLocation(locationData);
       return locationData;
     } catch (error) {
       console.error("Error getting location:", error);
-      Alert.alert("Error", "Gagal mendapatkan lokasi saat ini");
+      Alert.alert(
+        "Gagal Mengambil Lokasi",
+        "Pastikan GPS aktif dan coba lagi."
+      );
       return null;
     } finally {
       setLoadingLocation(false);

@@ -16,7 +16,7 @@ import { SafeAreaWrapper } from "../../components/SafeAreaWrapper";
 import { Colors } from "../../constants/Colors";
 import { useAuth } from "../../hooks/useAuth";
 import { supabase } from "../../lib/supabase";
-import { getStatusColor } from "../../lib/utils";
+import { getRoleColor } from "../../lib/utils";
 
 interface ProfileStats {
   totalPengaduan: number;
@@ -225,7 +225,7 @@ export default function ProfileScreen() {
             <View
               style={[
                 styles.roleBadge,
-                { backgroundColor: getStatusColor(user?.role || "") },
+                { backgroundColor: getRoleColor(user?.role || "") },
               ]}
             >
               <Text style={styles.roleText}>
@@ -397,105 +397,6 @@ export default function ProfileScreen() {
                 </View>
               </View>
             </View>
-
-            {/* Status Breakdown */}
-            {stats.totalPengaduan > 0 && (
-              <View style={styles.statusBreakdown}>
-                <Text style={styles.breakdownTitle}>Status Pengaduan:</Text>
-                <View style={styles.statusItems}>
-                  <View style={styles.statusItemSmall}>
-                    <View
-                      style={[
-                        styles.statusDot,
-                        { backgroundColor: getStatusColor("pending") },
-                      ]}
-                    />
-                    <Text style={styles.statusCount}>
-                      {stats.pengaduanByStatus.pending}
-                    </Text>
-                    <Text style={styles.statusLabelSmall}>Menunggu</Text>
-                  </View>
-                  <View style={styles.statusItemSmall}>
-                    <View
-                      style={[
-                        styles.statusDot,
-                        { backgroundColor: getStatusColor("diproses") },
-                      ]}
-                    />
-                    <Text style={styles.statusCount}>
-                      {stats.pengaduanByStatus.diproses}
-                    </Text>
-                    <Text style={styles.statusLabelSmall}>Diproses</Text>
-                  </View>
-                  <View style={styles.statusItemSmall}>
-                    <View
-                      style={[
-                        styles.statusDot,
-                        { backgroundColor: getStatusColor("selesai") },
-                      ]}
-                    />
-                    <Text style={styles.statusCount}>
-                      {stats.pengaduanByStatus.selesai}
-                    </Text>
-                    <Text style={styles.statusLabelSmall}>Selesai</Text>
-                  </View>
-                  <View style={styles.statusItemSmall}>
-                    <View
-                      style={[
-                        styles.statusDot,
-                        { backgroundColor: getStatusColor("ditolak") },
-                      ]}
-                    />
-                    <Text style={styles.statusCount}>
-                      {stats.pengaduanByStatus.ditolak}
-                    </Text>
-                    <Text style={styles.statusLabelSmall}>Ditolak</Text>
-                  </View>
-                </View>
-              </View>
-            )}
-          </View>
-        )}
-
-        {/* Statistik untuk Petugas/Admin */}
-        {(user?.role === "petugas" || user?.role === "admin") && (
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Statistik Sistem</Text>
-            <View style={styles.adminStats}>
-              <View style={styles.adminStatItem}>
-                <Ionicons
-                  name="document-text"
-                  size={20}
-                  color={Colors.primary}
-                />
-                <View style={styles.adminStatText}>
-                  <Text style={styles.adminStatNumber}>
-                    {stats.totalPengaduan}
-                  </Text>
-                  <Text style={styles.adminStatLabel}>Total Pengaduan</Text>
-                </View>
-              </View>
-              <View style={styles.adminStatItem}>
-                <Ionicons name="chatbubble" size={20} color={Colors.primary} />
-                <View style={styles.adminStatText}>
-                  <Text style={styles.adminStatNumber}>
-                    {stats.totalAspirasi}
-                  </Text>
-                  <Text style={styles.adminStatLabel}>Total Aspirasi</Text>
-                </View>
-              </View>
-              {user?.role === "admin" && (
-                <TouchableOpacity
-                  style={styles.adminDashboardButton}
-                  onPress={() => router.push("/admin/dashboard")}
-                >
-                  <Ionicons name="stats-chart" size={16} color="#fff" />
-                  <Text style={styles.adminDashboardText}>
-                    Dashboard Lengkap
-                  </Text>
-                </TouchableOpacity>
-              )}
-            </View>
           </View>
         )}
 
@@ -509,7 +410,7 @@ export default function ProfileScreen() {
             </View>
             <View style={styles.infoItem}>
               <Text style={styles.infoLabel}>Developer</Text>
-              <Text style={styles.infoValue}>Tim Pengembangan</Text>
+              <Text style={styles.infoValue}>Hilmy Hafizh</Text>
             </View>
             <View style={styles.infoItem}>
               <Text style={styles.infoLabel}>Update Terakhir</Text>

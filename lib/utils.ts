@@ -1,3 +1,4 @@
+import { Colors } from "@/constants/Colors";
 import { Alert } from "react-native";
 
 export const showAlert = (title: string, message: string) => {
@@ -46,5 +47,32 @@ export const getStatusText = (status: string) => {
       return "Disetujui";
     default:
       return status;
+  }
+};
+
+//  🔹 TAMBAHKAN BAGIAN INI UNTUK ROLE 🔹
+export const getRoleColor = (role: string) => {
+  switch (role) {
+    case "masyarakat":
+      return Colors.primary; // atau "#3b82f6"
+    case "petugas":
+      return Colors.warning; // atau "#eab308"
+    case "admin":
+      return Colors.success; // atau "#22c55e"
+    default:
+      return Colors.textLight; // fallback
+  }
+};
+
+export const getRoleText = (role: string) => {
+  switch (role) {
+    case "masyarakat":
+      return "Masyarakat";
+    case "petugas":
+      return "Petugas";
+    case "admin":
+      return "Admin";
+    default:
+      return role;
   }
 };

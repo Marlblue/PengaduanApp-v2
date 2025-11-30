@@ -1,7 +1,7 @@
 {
   "expo": {
-    "name": "Pengaduan Masyarakat",
-    "slug": "pengaduan-masyarakat",
+    "name": "SpamApp",
+    "slug": "spamapp",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",

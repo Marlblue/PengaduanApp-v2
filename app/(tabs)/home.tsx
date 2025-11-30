@@ -12,7 +12,7 @@ import { SafeAreaWrapper } from "../../components/SafeAreaWrapper";
 import { Colors } from "../../constants/Colors";
 import { useAuth } from "../../hooks/useAuth";
 import { supabase } from "../../lib/supabase";
-import { getStatusColor } from "../../lib/utils";
+import { getRoleColor, getRoleText } from "../../lib/utils";
 
 interface Stats {
   totalPengaduan: number;
@@ -235,16 +235,10 @@ export default function HomeScreen() {
           <View
             style={[
               styles.roleBadge,
-              { backgroundColor: getStatusColor(user?.role || "") },
+              { backgroundColor: getRoleColor(user?.role || "") },
             ]}
           >
-            <Text style={styles.roleText}>
-              {user?.role === "masyarakat"
-                ? "Masyarakat"
-                : user?.role === "petugas"
-                ? "Petugas"
-                : "Admin"}
-            </Text>
+            <Text style={styles.roleText}>{getRoleText(user?.role || "")}</Text>
           </View>
         </View>
         {renderStats()}
@@ -292,7 +286,7 @@ const styles = StyleSheet.create({
   statsGrid: {
     flexDirection: "row",
     flexWrap: "wrap",
-    justifyContent: "space-between",
+    gap: 12,
     marginBottom: 24,
   },
   statCard: {
@@ -300,7 +294,7 @@ const styles = StyleSheet.create({
     padding: 16,
     borderRadius: 12,
     alignItems: "center",
-    flex: 0.48,
+    width: "48%",
     marginBottom: 12,
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 2 },

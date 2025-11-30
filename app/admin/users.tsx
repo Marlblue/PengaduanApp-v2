@@ -351,26 +351,6 @@ export default function AdminUsersScreen() {
                     )}
                   </View>
                 </View>
-
-                {/* User Statistics */}
-                <View style={styles.userStats}>
-                  <View style={styles.statItem}>
-                    <Ionicons
-                      name="document-text"
-                      size={16}
-                      color={Colors.textLight}
-                    />
-                    <Text style={styles.statItemText}>Pengaduan: 0</Text>
-                  </View>
-                  <View style={styles.statItem}>
-                    <Ionicons
-                      name="chatbubble"
-                      size={16}
-                      color={Colors.textLight}
-                    />
-                    <Text style={styles.statItemText}>Aspirasi: 0</Text>
-                  </View>
-                </View>
               </View>
             ))
           )}

@@ -1,6 +1,7 @@
 import { Ionicons } from "@expo/vector-icons";
+import { useFocusEffect } from "@react-navigation/native";
 import { router, useLocalSearchParams } from "expo-router";
-import React, { useEffect, useState } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
@@ -33,7 +34,7 @@ export default function PengaduanDetailScreen() {
   const [imageLoading, setImageLoading] = useState(true);
   const [modalVisible, setModalVisible] = useState(false);
 
-  const fetchPengaduan = async () => {
+  const fetchPengaduan = useCallback(async () => {
     if (!id) return;
 
     try {
@@ -49,9 +50,7 @@ export default function PengaduanDetailScreen() {
         .eq("id", id)
         .single();
 
-      if (error) {
-        throw error;
-      }
+      if (error) throw error;
 
       setPengaduan(data);
     } catch (error) {
@@ -60,17 +59,20 @@ export default function PengaduanDetailScreen() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [id]);
 
   useEffect(() => {
-    if (id) {
-      fetchPengaduan();
-    }
-  }, [id]);
+    fetchPengaduan();
+  }, [fetchPengaduan]);
+
+  useFocusEffect(
+    useCallback(() => {
+      if (!loading) fetchPengaduan();
+    }, [loading, fetchPengaduan])
+  );
 
   const openMap = () => {
     if (!pengaduan?.latitude || !pengaduan?.longitude) return;
-
     const url = `https://maps.google.com/?q=${pengaduan.latitude},${pengaduan.longitude}`;
     Linking.openURL(url);
   };
@@ -78,6 +80,20 @@ export default function PengaduanDetailScreen() {
   const openImage = () => {
     if (!pengaduan?.foto_url) return;
     setModalVisible(true);
+  };
+
+  // Fungsi untuk cek apakah status pernah dilalui
+  const hasPassedStatus = (status: string): boolean => {
+    if (!pengaduan) return false;
+
+    const statusOrder = ["pending", "diproses", "selesai"];
+    const currentIndex = statusOrder.indexOf(pengaduan.status);
+    const checkIndex = statusOrder.indexOf(status);
+
+    // Jika ditolak, berarti pernah lewat pending
+    if (pengaduan.status === "ditolak" && status === "pending") return true;
+
+    return checkIndex <= currentIndex;
   };
 
   const canEdit = user?.role === "petugas" || user?.role === "admin";
@@ -106,9 +122,9 @@ export default function PengaduanDetailScreen() {
     <SafeAreaWrapper>
       <ScrollView
         style={styles.container}
-        contentContainerStyle={{ paddingBottom: 40 }}
+        contentContainerStyle={styles.contentContainer}
       >
-        {/* Header dengan judul dan status */}
+        {/* Header */}
         <View style={styles.header}>
           <View style={styles.titleContainer}>
             <Text style={styles.title}>{pengaduan.judul}</Text>
@@ -123,12 +139,11 @@ export default function PengaduanDetailScreen() {
               </Text>
             </View>
           </View>
-
           <Text style={styles.category}>{pengaduan.kategori}</Text>
           <Text style={styles.date}>{formatDate(pengaduan.created_at)}</Text>
         </View>
 
-        {/* Foto Pengaduan */}
+        {/* Foto */}
         {pengaduan.foto_url && (
           <TouchableOpacity style={styles.imageContainer} onPress={openImage}>
             <Image
@@ -149,7 +164,7 @@ export default function PengaduanDetailScreen() {
           </TouchableOpacity>
         )}
 
-        {/* Informasi Pengadu */}
+        {/* Info Pengadu */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Informasi Pengadu</Text>
           <View style={styles.infoGrid}>
@@ -196,14 +211,14 @@ export default function PengaduanDetailScreen() {
           </TouchableOpacity>
         </View>
 
-        {/* Informasi Petugas */}
+        {/* Tanggapan Petugas */}
         {(pengaduan.petugas_profiles || pengaduan.tanggapan) && (
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>Tanggapan Petugas</Text>
 
             {pengaduan.petugas_profiles && (
               <View style={styles.infoItem}>
-                <Text style={styles.infoLabel}>Petugas Penanggung Jawab</Text>
+                <Text style={styles.infoLabel}>Penanggung Jawab</Text>
                 <Text style={styles.infoValue}>
                   {pengaduan.petugas_profiles.full_name ||
                     pengaduan.petugas_profiles.email}
@@ -228,38 +243,97 @@ export default function PengaduanDetailScreen() {
 
         {/* Timeline Status */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Status Pengaduan</Text>
+          <Text style={styles.sectionTitle}>Riwayat Status</Text>
           <View style={styles.timeline}>
+            {/* Step 1: Dibuat */}
             <View style={styles.timelineItem}>
-              <View style={styles.timelineDot} />
+              <View style={[styles.timelineDot, styles.timelineDotCompleted]} />
               <View style={styles.timelineContent}>
-                <Text style={styles.timelineTitle}>Dibuat</Text>
+                <Text style={styles.timelineTitle}>Pengaduan Dibuat</Text>
                 <Text style={styles.timelineDate}>
                   {formatDate(pengaduan.created_at)}
                 </Text>
                 <Text style={styles.timelineDescription}>
-                  Pengaduan telah dibuat dan menunggu verifikasi
+                  Pengaduan telah dibuat oleh{" "}
+                  {pengaduan.profiles?.full_name || pengaduan.profiles?.email}
                 </Text>
               </View>
             </View>
 
-            {pengaduan.status !== "pending" && (
+            {/* Step 2: Diproses */}
+            {hasPassedStatus("diproses") && (
               <View style={styles.timelineItem}>
-                <View style={styles.timelineDot} />
+                <View
+                  style={[
+                    styles.timelineDot,
+                    pengaduan.status === "diproses"
+                      ? styles.timelineDotActive
+                      : styles.timelineDotCompleted,
+                  ]}
+                />
                 <View style={styles.timelineContent}>
-                  <Text style={styles.timelineTitle}>
-                    {getStatusText(pengaduan.status)}
-                  </Text>
+                  <Text style={styles.timelineTitle}>Sedang Diproses</Text>
                   <Text style={styles.timelineDate}>
                     {pengaduan.updated_at
                       ? formatDate(pengaduan.updated_at)
                       : "-"}
                   </Text>
-                  {pengaduan.tanggapan && (
-                    <Text style={styles.timelineDescription}>
-                      {pengaduan.tanggapan}
-                    </Text>
-                  )}
+                  <Text style={styles.timelineDescription}>
+                    Pengaduan sedang dalam proses penanganan
+                  </Text>
+                </View>
+              </View>
+            )}
+
+            {/* Step 3: Selesai */}
+            {pengaduan.status === "selesai" && (
+              <View style={styles.timelineItem}>
+                <View
+                  style={[styles.timelineDot, styles.timelineDotCompleted]}
+                />
+                <View style={styles.timelineContent}>
+                  <Text style={styles.timelineTitle}>Selesai</Text>
+                  <Text style={styles.timelineDate}>
+                    {pengaduan.updated_at
+                      ? formatDate(pengaduan.updated_at)
+                      : "-"}
+                  </Text>
+                  <Text style={styles.timelineDescription}>
+                    Pengaduan telah selesai ditangani
+                  </Text>
+                </View>
+              </View>
+            )}
+
+            {/* Step 3 Alt: Ditolak */}
+            {pengaduan.status === "ditolak" && (
+              <View style={styles.timelineItem}>
+                <View
+                  style={[styles.timelineDot, styles.timelineDotRejected]}
+                />
+                <View style={styles.timelineContent}>
+                  <Text style={styles.timelineTitle}>Ditolak</Text>
+                  <Text style={styles.timelineDate}>
+                    {pengaduan.updated_at
+                      ? formatDate(pengaduan.updated_at)
+                      : "-"}
+                  </Text>
+                  <Text style={styles.timelineDescription}>
+                    Pengaduan telah ditolak
+                  </Text>
+                </View>
+              </View>
+            )}
+
+            {/* Pending */}
+            {pengaduan.status === "pending" && (
+              <View style={styles.timelineItem}>
+                <View style={[styles.timelineDot, styles.timelineDotPending]} />
+                <View style={styles.timelineContent}>
+                  <Text style={styles.timelineTitle}>Menunggu Verifikasi</Text>
+                  <Text style={styles.timelineDescription}>
+                    Pengaduan sedang menunggu ditangani oleh petugas
+                  </Text>
                 </View>
               </View>
             )}
@@ -268,24 +342,23 @@ export default function PengaduanDetailScreen() {
 
         {/* Action Buttons */}
         {canEdit && (
-          <View style={styles.actions}>
-            <TouchableOpacity
-              style={styles.editButton}
-              onPress={() => router.push(`/pengaduan/update/${pengaduan.id}`)}
-            >
-              <Ionicons name="create-outline" size={20} color="#fff" />
-              <Text style={styles.editButtonText}>Update Status</Text>
-            </TouchableOpacity>
-          </View>
+          <TouchableOpacity
+            style={styles.editButton}
+            onPress={() => router.push(`/pengaduan/update/${pengaduan.id}`)}
+          >
+            <Ionicons name="create-outline" size={20} color="#fff" />
+            <Text style={styles.editButtonText}>Update Status</Text>
+          </TouchableOpacity>
         )}
       </ScrollView>
 
-      {/* 👉 Tambahkan Modal DI SINI */}
+      {/* Modal Fullscreen Image */}
       {pengaduan?.foto_url && (
-        <Modal visible={modalVisible} transparent={true}>
+        <Modal visible={modalVisible} transparent animationType="fade">
           <View style={styles.modalContainer}>
             <TouchableOpacity
               style={styles.modalCloseArea}
+              activeOpacity={1}
               onPress={() => setModalVisible(false)}
             />
             <Image
@@ -308,8 +381,11 @@ export default function PengaduanDetailScreen() {
 
 const styles = StyleSheet.create({
   container: {
-    flexGrow: 1,
+    flex: 1,
+  },
+  contentContainer: {
     padding: 16,
+    paddingBottom: 40,
   },
   centerContainer: {
     flex: 1,
@@ -470,7 +546,7 @@ const styles = StyleSheet.create({
     fontStyle: "italic",
   },
   timeline: {
-    gap: 16,
+    gap: 20,
   },
   timelineItem: {
     flexDirection: "row",
@@ -480,8 +556,19 @@ const styles = StyleSheet.create({
     width: 12,
     height: 12,
     borderRadius: 6,
-    backgroundColor: Colors.primary,
     marginTop: 4,
+  },
+  timelineDotCompleted: {
+    backgroundColor: "#22c55e",
+  },
+  timelineDotActive: {
+    backgroundColor: Colors.primary,
+  },
+  timelineDotPending: {
+    backgroundColor: "#f59e0b",
+  },
+  timelineDotRejected: {
+    backgroundColor: "#ef4444",
   },
   timelineContent: {
     flex: 1,
@@ -502,9 +589,6 @@ const styles = StyleSheet.create({
     color: Colors.text,
     lineHeight: 18,
   },
-  actions: {
-    marginBottom: 24,
-  },
   editButton: {
     flexDirection: "row",
     alignItems: "center",
@@ -513,6 +597,7 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.primary,
     padding: 16,
     borderRadius: 8,
+    marginTop: 8,
   },
   editButtonText: {
     color: "#fff",

@@ -2,10 +2,11 @@ import { SearchBar } from "@/components/SearchBar";
 import { Ionicons } from "@expo/vector-icons";
 import { useFocusEffect } from "@react-navigation/native";
 import { router } from "expo-router";
-import React, { useEffect, useState } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import {
   Alert,
   Image,
+  RefreshControl,
   ScrollView,
   StyleSheet,
   Text,
@@ -39,7 +40,8 @@ export default function PengaduanListScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const canCreatePengaduan = user?.role === "masyarakat";
 
-  const fetchPengaduan = async () => {
+  // ✅ PERBAIKAN 1: Wrap dengan useCallback untuk mencegah infinite loop
+  const fetchPengaduan = useCallback(async () => {
     if (!user) return;
 
     try {
@@ -64,71 +66,71 @@ export default function PengaduanListScreen() {
       }
 
       setPengaduan(data || []);
-      applyFilters(
-        data || [],
-        selectedStatus,
-        selectedKategori,
-        searchQuery,
-        sortOrder
-      );
     } catch (error) {
       console.error("Error fetching pengaduan:", error);
       Alert.alert("Error", "Gagal memuat data pengaduan");
     } finally {
       setLoading(false);
     }
-  };
+  }, [user]); // Hanya dibuat ulang kalau user berubah
 
-  const applyFilters = (
-    data: Pengaduan[],
-    status: PengaduanStatus | "all",
-    kategori: PengaduanKategori | "all",
-    query: string,
-    order: "newest" | "oldest"
-  ) => {
-    let filtered = data;
+  // ✅ PERBAIKAN 2: Pisahkan logic filtering ke fungsi terpisah
+  const applyFilters = useCallback(
+    (
+      data: Pengaduan[],
+      status: PengaduanStatus | "all",
+      kategori: PengaduanKategori | "all",
+      query: string,
+      order: "newest" | "oldest"
+    ) => {
+      let filtered = data;
 
-    // Filter by status
-    if (status !== "all") {
-      filtered = filtered.filter((item) => item.status === status);
-    }
+      // Filter by status
+      if (status !== "all") {
+        filtered = filtered.filter((item) => item.status === status);
+      }
 
-    // Filter by kategori
-    if (kategori !== "all") {
-      filtered = filtered.filter((item) => item.kategori === kategori);
-    }
+      // Filter by kategori
+      if (kategori !== "all") {
+        filtered = filtered.filter((item) => item.kategori === kategori);
+      }
 
-    // Filter by search query
-    if (query) {
-      const lowerQuery = query.toLowerCase();
-      filtered = filtered.filter(
-        (item) =>
-          item.judul.toLowerCase().includes(lowerQuery) ||
-          item.deskripsi.toLowerCase().includes(lowerQuery) ||
-          item.kategori.toLowerCase().includes(lowerQuery)
-      );
-    }
+      // Filter by search query
+      if (query) {
+        const lowerQuery = query.toLowerCase();
+        filtered = filtered.filter(
+          (item) =>
+            item.judul.toLowerCase().includes(lowerQuery) ||
+            item.deskripsi.toLowerCase().includes(lowerQuery) ||
+            item.kategori.toLowerCase().includes(lowerQuery)
+        );
+      }
 
-    // Sort
-    filtered = [...filtered].sort((a, b) => {
-      const dateA = new Date(a.created_at).getTime();
-      const dateB = new Date(b.created_at).getTime();
-      return order === "newest" ? dateB - dateA : dateA - dateB;
-    });
+      // Sort
+      filtered = [...filtered].sort((a, b) => {
+        const dateA = new Date(a.created_at).getTime();
+        const dateB = new Date(b.created_at).getTime();
+        return order === "newest" ? dateB - dateA : dateA - dateB;
+      });
 
-    setFilteredPengaduan(filtered);
-  };
+      setFilteredPengaduan(filtered);
+    },
+    []
+  );
 
+  // Initial fetch saat user berubah
   useEffect(() => {
     fetchPengaduan();
-  }, [user]);
+  }, [fetchPengaduan]);
 
+  // ✅ PERBAIKAN 3: Gunakan useCallback dengan dependency yang benar
   useFocusEffect(
-    React.useCallback(() => {
+    useCallback(() => {
       fetchPengaduan();
     }, [fetchPengaduan])
   );
 
+  // Apply filters setiap kali ada perubahan
   useEffect(() => {
     applyFilters(
       pengaduan,
@@ -137,8 +139,16 @@ export default function PengaduanListScreen() {
       searchQuery,
       sortOrder
     );
-  }, [selectedStatus, selectedKategori, searchQuery, sortOrder, pengaduan]);
+  }, [
+    selectedStatus,
+    selectedKategori,
+    searchQuery,
+    sortOrder,
+    pengaduan,
+    applyFilters,
+  ]);
 
+  // ✅ PERBAIKAN 4: Implementasi pull-to-refresh dengan benar
   const onRefresh = async () => {
     setRefreshing(true);
     await fetchPengaduan();
@@ -180,7 +190,12 @@ export default function PengaduanListScreen() {
 
   return (
     <SafeAreaWrapper>
-      <ScrollView>
+      {/* ✅ PERBAIKAN 5: Tambahkan RefreshControl untuk pull-to-refresh */}
+      <ScrollView
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+        }
+      >
         <View style={styles.container}>
           <View style={styles.header}>
             <Text style={styles.title}>Daftar Pengaduan</Text>
@@ -311,11 +326,11 @@ export default function PengaduanListScreen() {
                 color={Colors.textLight}
               />
               <Text style={styles.emptyText}>
-                {selectedStatus === "all"
+                {searchQuery
+                  ? "Tidak ada pengaduan yang cocok dengan pencarian"
+                  : selectedStatus === "all" && selectedKategori === "all"
                   ? "Belum ada pengaduan"
-                  : `Tidak ada pengaduan dengan status ${getStatusText(
-                      selectedStatus
-                    ).toLowerCase()}`}
+                  : `Tidak ada pengaduan dengan filter yang dipilih`}
               </Text>
             </View>
           ) : (
