@@ -1,5 +1,6 @@
 import { manipulateAsync, SaveFormat } from "expo-image-manipulator";
 import * as ImagePicker from "expo-image-picker";
+import { MediaTypeOptions } from "expo-image-picker";
 import { useState } from "react";
 import { Alert } from "react-native";
 import { usePermissions } from "./usePermissions";
@@ -26,7 +27,7 @@ export function useEnhancedImagePicker() {
         {
           compress: 0.7, // 70% quality
           format: SaveFormat.JPEG,
-        }
+        },
       );
 
       return compressedImage.uri;
@@ -47,15 +48,13 @@ export function useEnhancedImagePicker() {
 
       const result = await (fromCamera
         ? ImagePicker.launchCameraAsync({
-            mediaTypes: ImagePicker.MediaTypeOptions.Images,
-            allowsEditing: true,
-            aspect: [4, 3],
+            mediaTypes: MediaTypeOptions.Images,
+            allowsEditing: false,
             quality: 0.8,
           })
         : ImagePicker.launchImageLibraryAsync({
-            mediaTypes: ImagePicker.MediaTypeOptions.Images,
-            allowsEditing: true,
-            aspect: [4, 3],
+            mediaTypes: MediaTypeOptions.Images,
+            allowsEditing: false,
             quality: 0.8,
           }));
 

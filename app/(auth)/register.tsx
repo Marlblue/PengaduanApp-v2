@@ -1,7 +1,9 @@
-import { Link, router } from "expo-router";
+import { Ionicons } from "@expo/vector-icons";
+import { useRouter } from "expo-router";
 import React, { useState } from "react";
 import {
-  Alert,
+  ActivityIndicator,
+  Keyboard,
   KeyboardAvoidingView,
   Platform,
   ScrollView,
@@ -11,11 +13,14 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
-import { SafeAreaWrapper } from "../../components/SafeAreaWrapper";
+import { SafeAreaView } from "react-native-safe-area-context";
+import { Toast } from "../../components/Toast";
 import { Colors } from "../../constants/Colors";
+import { useToast } from "../../hooks/useToast";
 import { supabase } from "../../lib/supabase";
 
 export default function RegisterScreen() {
+  const router = useRouter();
   const [form, setForm] = useState({
     fullName: "",
     email: "",
@@ -24,237 +29,470 @@ export default function RegisterScreen() {
     confirmPassword: "",
   });
   const [loading, setLoading] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirm, setShowConfirm] = useState(false);
+  const [agreed, setAgreed] = useState(false);
 
-  const phoneRegex = /^[0-9]{10,14}$/;
+  const { visible, message, type, showToast, hideToast } = useToast();
 
-  const validatePhone = (phone: string): boolean => {
-    return phoneRegex.test(phone);
-  };
-
-  const handleChange = (field: string, value: string) => {
-    setForm((prev) => ({ ...prev, [field]: value }));
+  const handleChange = (key: string, value: string) => {
+    setForm((prev) => ({ ...prev, [key]: value }));
   };
 
   const handleRegister = async () => {
-    if (!form.fullName || !form.email || !form.phone || !form.password) {
-      Alert.alert("Error", "Harap isi semua field");
+    const { fullName, email, phone, password, confirmPassword } = form;
+
+    if (!fullName || !email || !phone || !password || !confirmPassword) {
+      showToast("Semua kolom wajib diisi", "error");
       return;
     }
 
-    if (!validatePhone(form.phone)) {
-      Alert.alert(
-        "Error",
-        "Format nomor telepon tidak valid. Contoh: 081234567890"
+    // Validate Full Name
+    if (fullName.length < 3) {
+      showToast("Nama lengkap minimal 3 karakter", "error");
+      return;
+    }
+
+    const nameRegex = /^[a-zA-Z\s'.\-]+$/;
+    if (!nameRegex.test(fullName)) {
+      showToast(
+        "Nama lengkap hanya boleh berisi huruf, spasi, titik, petik, dan strip",
+        "error",
       );
       return;
     }
 
-    if (form.password !== form.confirmPassword) {
-      Alert.alert("Error", "Password dan konfirmasi password tidak cocok");
+    // Validate Email Format
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+      showToast("Format email tidak valid", "error");
       return;
     }
 
-    if (form.password.length < 6) {
-      Alert.alert("Error", "Password minimal 6 karakter");
+    // Validate Phone Number Format
+    const phoneRegex = /^08[1-9][0-9]{7,11}$/;
+    if (!phoneRegex.test(phone)) {
+      showToast("Format nomor telepon tidak valid (Gunakan 08...)", "error");
+      return;
+    }
+
+    if (password !== confirmPassword) {
+      showToast("Password konfirmasi tidak sesuai", "error");
+      return;
+    }
+
+    if (password.length < 6) {
+      showToast("Password minimal 6 karakter", "error");
+      return;
+    }
+
+    if (!agreed) {
+      showToast("Anda wajib menyetujui Syarat & Ketentuan", "error");
       return;
     }
 
     setLoading(true);
     try {
-      // Register user
+      // 0. Pre-check: Cek apakah nomor HP sudah terdaftar di tabel profiles
+      // Menggunakan maybeSingle() untuk menghindari error JSON jika kosong
+      const { data: existingPhone, error: phoneCheckError } = await supabase
+        .from("profiles")
+        .select("phone")
+        .eq("phone", phone)
+        .maybeSingle();
+
+      if (phoneCheckError) {
+        // Abaikan error permission/RLS, lanjut ke sign up (biarkan backend handle)
+        console.log(
+          "Phone check skipped due to error:",
+          phoneCheckError.message,
+        );
+      } else if (existingPhone) {
+        throw new Error("Nomor telepon sudah terdaftar. Silakan login.");
+      }
+
+      // 1. Sign Up (Atomic: Includes metadata for Trigger)
+      // Tentukan redirect URL berdasarkan environment
+      const redirectTo = __DEV__
+        ? undefined // Di Expo Go (Dev), biarkan default Supabase (Site URL) untuk menghindari broken scheme
+        : "pengaduanappv2://(auth)/login"; // Di Production (APK), gunakan Deep Link scheme
+
       const { data: authData, error: authError } = await supabase.auth.signUp({
-        email: form.email.trim().toLowerCase(),
-        password: form.password,
+        email: email.trim().toLowerCase(),
+        password,
+        options: {
+          emailRedirectTo: redirectTo,
+          data: {
+            full_name: fullName,
+            phone: phone,
+          },
+        },
       });
 
-      if (authError) {
-        Alert.alert("Error", authError.message);
-        return;
-      }
+      if (authError) throw authError;
 
+      // 2. Success Handling
       if (authData.user) {
-        // Update profile dengan data tambahan
-        const { error: profileError } = await supabase
-          .from("profiles")
-          .update({
-            full_name: form.fullName,
-            phone: form.phone,
-          })
-          .eq("id", authData.user.id);
-
-        if (profileError) {
-          console.error("Error updating profile:", profileError);
+        if (authData.session) {
+          // Auto Login (Jika Confirm Email dimatikan di Supabase)
+          showToast("Registrasi berhasil! Masuk ke aplikasi...", "success");
+          // Redirect akan ditangani otomatis oleh app/_layout.tsx yang mendeteksi user login
+        } else {
+          // Verify Flow (Jika Confirm Email menyala)
+          showToast(
+            "Link verifikasi telah dikirim ke email Anda.",
+            "success",
+          );
+          // Redirect to Login
+          setTimeout(() => {
+            router.replace("/(auth)/login");
+          }, 2500);
         }
-
-        Alert.alert(
-          "Sukses",
-          "Registrasi berhasil! Silakan login dengan akun Anda.",
-          [{ text: "OK", onPress: () => router.replace("/(auth)/login") }]
-        );
       }
-    } catch (error) {
-      Alert.alert("Error", "Terjadi kesalahan saat registrasi");
+    } catch (error: any) {
+      let errorMessage = error.message || "Gagal registrasi";
+
+      // Map Supabase/Postgres errors to user-friendly messages
+      if (errorMessage.includes("Database error saving new user")) {
+        errorMessage =
+          "Nomor telepon sudah terdaftar. Silakan gunakan nomor lain atau login.";
+      } else if (errorMessage.includes("User already registered")) {
+        errorMessage = "Email sudah terdaftar. Silakan login.";
+      } else if (errorMessage.includes("rate limit")) {
+        errorMessage = "Terlalu banyak percobaan. Coba lagi nanti.";
+      } else if (errorMessage.includes("Password should be")) {
+        errorMessage =
+          "Password terlalu lemah. Gunakan kombinasi huruf dan angka.";
+      }
+
+      showToast(errorMessage, "error");
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <SafeAreaWrapper>
+    <SafeAreaView style={styles.container}>
+      <Toast
+        visible={visible}
+        message={message}
+        type={type}
+        onHide={hideToast}
+      />
       <KeyboardAvoidingView
-        style={styles.container}
+        style={{ flex: 1 }}
         behavior={Platform.OS === "ios" ? "padding" : "height"}
+        keyboardVerticalOffset={Platform.OS === "ios" ? 0 : 20}
       >
-        <ScrollView contentContainerStyle={styles.scrollContent}>
+        <ScrollView
+          contentContainerStyle={styles.scrollContent}
+          showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
+        >
+          {/* Header */}
           <View style={styles.header}>
-            <Text style={styles.title}>Daftar Akun</Text>
-            <Text style={styles.subtitle}>Buat akun baru</Text>
+            <View style={styles.headerTextContainer}>
+              <Text style={styles.title}>Buat Akun</Text>
+              <Text style={styles.subtitle}>
+                Bergabung untuk melapor lebih mudah
+              </Text>
+            </View>
           </View>
 
+          {/* Form */}
           <View style={styles.form}>
-            <Text style={styles.label}>Nama Lengkap</Text>
-            <TextInput
-              style={styles.input}
-              placeholder="Masukkan nama lengkap"
-              value={form.fullName}
-              onChangeText={(value) => handleChange("fullName", value)}
-            />
+            <View style={styles.inputGroup}>
+              <Text style={styles.label}>Nama Lengkap</Text>
+              <View style={styles.inputContainer}>
+                <Ionicons
+                  name="person-outline"
+                  size={20}
+                  color={Colors.textLight}
+                  style={styles.inputIcon}
+                />
+                <TextInput
+                  style={styles.input}
+                  placeholder="Nama Lengkap"
+                  placeholderTextColor="#94a3b8"
+                  value={form.fullName}
+                  onChangeText={(t) => handleChange("fullName", t)}
+                />
+              </View>
+            </View>
 
-            <Text style={styles.label}>Email</Text>
-            <TextInput
-              style={styles.input}
-              placeholder="Masukkan email"
-              value={form.email}
-              onChangeText={(value) => handleChange("email", value)}
-              autoCapitalize="none"
-              keyboardType="email-address"
-            />
+            <View style={styles.inputGroup}>
+              <Text style={styles.label}>Email</Text>
+              <View style={styles.inputContainer}>
+                <Ionicons
+                  name="mail-outline"
+                  size={20}
+                  color={Colors.textLight}
+                  style={styles.inputIcon}
+                />
+                <TextInput
+                  style={styles.input}
+                  placeholder="nama@email.com"
+                  placeholderTextColor="#94a3b8"
+                  value={form.email}
+                  onChangeText={(t) => handleChange("email", t)}
+                  keyboardType="email-address"
+                  autoCapitalize="none"
+                />
+              </View>
+            </View>
 
-            <Text style={styles.label}>Nomor Telepon</Text>
-            <TextInput
-              style={styles.input}
-              placeholder="Masukkan nomor telepon"
-              value={form.phone}
-              onChangeText={(value) => handleChange("phone", value)}
-              keyboardType="phone-pad"
-            />
+            <View style={styles.inputGroup}>
+              <Text style={styles.label}>Nomor Telepon</Text>
+              <View style={styles.inputContainer}>
+                <Ionicons
+                  name="call-outline"
+                  size={20}
+                  color={Colors.textLight}
+                  style={styles.inputIcon}
+                />
+                <TextInput
+                  style={styles.input}
+                  placeholder="08xxxxxxxxxx"
+                  placeholderTextColor="#94a3b8"
+                  value={form.phone}
+                  onChangeText={(t) => {
+                    // Only allow numbers
+                    if (/^\d*$/.test(t)) {
+                      handleChange("phone", t);
+                    }
+                  }}
+                  keyboardType="phone-pad"
+                />
+              </View>
+            </View>
 
-            <Text style={styles.label}>Password</Text>
-            <TextInput
-              style={styles.input}
-              placeholder="Masukkan password"
-              value={form.password}
-              onChangeText={(value) => handleChange("password", value)}
-              secureTextEntry
-            />
+            <View style={styles.inputGroup}>
+              <Text style={styles.label}>Password</Text>
+              <View style={styles.inputContainer}>
+                <Ionicons
+                  name="lock-closed-outline"
+                  size={20}
+                  color={Colors.textLight}
+                  style={styles.inputIcon}
+                />
+                <TextInput
+                  style={styles.input}
+                  placeholder="Minimal 6 karakter"
+                  placeholderTextColor="#94a3b8"
+                  value={form.password}
+                  onChangeText={(t) => handleChange("password", t)}
+                  secureTextEntry={!showPassword}
+                />
+                <TouchableOpacity
+                  onPress={() => setShowPassword(!showPassword)}
+                >
+                  <Ionicons
+                    name={showPassword ? "eye-off-outline" : "eye-outline"}
+                    size={20}
+                    color={Colors.textLight}
+                  />
+                </TouchableOpacity>
+              </View>
+            </View>
 
-            <Text style={styles.label}>Konfirmasi Password</Text>
-            <TextInput
-              style={styles.input}
-              placeholder="Konfirmasi password"
-              value={form.confirmPassword}
-              onChangeText={(value) => handleChange("confirmPassword", value)}
-              secureTextEntry
-            />
+            <View style={styles.inputGroup}>
+              <Text style={styles.label}>Konfirmasi Password</Text>
+              <View style={styles.inputContainer}>
+                <Ionicons
+                  name="lock-closed-outline"
+                  size={20}
+                  color={Colors.textLight}
+                  style={styles.inputIcon}
+                />
+                <TextInput
+                  style={styles.input}
+                  placeholder="Ulangi password"
+                  placeholderTextColor="#94a3b8"
+                  value={form.confirmPassword}
+                  onChangeText={(t) => handleChange("confirmPassword", t)}
+                  secureTextEntry={!showConfirm}
+                />
+                <TouchableOpacity onPress={() => setShowConfirm(!showConfirm)}>
+                  <Ionicons
+                    name={showConfirm ? "eye-off-outline" : "eye-outline"}
+                    size={20}
+                    color={Colors.textLight}
+                  />
+                </TouchableOpacity>
+              </View>
+            </View>
+
+            <View style={styles.termsContainer}>
+              <TouchableOpacity
+                style={styles.checkbox}
+                onPress={() => setAgreed(!agreed)}
+              >
+                <Ionicons
+                  name={agreed ? "checkbox" : "square-outline"}
+                  size={24}
+                  color={agreed ? Colors.primary : "#94a3b8"}
+                />
+              </TouchableOpacity>
+              <Text style={styles.termsText}>
+                Saya menyetujui{" "}
+                <Text style={styles.termsLink}>Syarat & Ketentuan</Text> dan{" "}
+                <Text style={styles.termsLink}>Kebijakan Privasi</Text> yang
+                berlaku.
+              </Text>
+            </View>
 
             <TouchableOpacity
               style={[styles.button, loading && styles.buttonDisabled]}
               onPress={handleRegister}
               disabled={loading}
+              activeOpacity={0.8}
             >
-              <Text style={styles.buttonText}>
-                {loading ? "Memproses..." : "Daftar"}
-              </Text>
+              {loading ? (
+                <ActivityIndicator color="#fff" />
+              ) : (
+                <Text style={styles.buttonText}>Daftar Sekarang</Text>
+              )}
             </TouchableOpacity>
+          </View>
 
-            <View style={styles.footer}>
-              <Text style={styles.footerText}>Sudah punya akun? </Text>
-              <Link href="/(auth)/login" asChild>
-                <TouchableOpacity>
-                  <Text style={styles.linkText}>Masuk di sini</Text>
-                </TouchableOpacity>
-              </Link>
-            </View>
+          {/* Footer */}
+          <View style={styles.footer}>
+            <Text style={styles.footerText}>Sudah punya akun? </Text>
+            <TouchableOpacity
+              onPress={() => {
+                Keyboard.dismiss();
+                setTimeout(() => {
+                  router.replace("/(auth)/login");
+                }, 100);
+              }}
+            >
+              <Text style={styles.footerLink}>Masuk Disini</Text>
+            </TouchableOpacity>
           </View>
         </ScrollView>
       </KeyboardAvoidingView>
-    </SafeAreaWrapper>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    backgroundColor: "#fff",
+  },
+  termsContainer: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    marginBottom: 8,
+    marginTop: 8,
+  },
+  checkbox: {
+    marginRight: 8,
+    marginTop: -2,
+  },
+  termsText: {
+    flex: 1,
+    fontSize: 14,
+    color: "#64748b",
+    lineHeight: 20,
+  },
+  termsLink: {
+    color: Colors.primary,
+    fontWeight: "600",
   },
   scrollContent: {
     flexGrow: 1,
-    justifyContent: "center",
-    padding: 20,
+    padding: 24,
+    paddingBottom: 100,
   },
   header: {
+    marginBottom: 30,
+    marginTop: 10,
+  },
+  backButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: "#f1f5f9",
+    justifyContent: "center",
     alignItems: "center",
-    marginBottom: 40,
+    marginBottom: 20,
+  },
+  headerTextContainer: {
+    gap: 8,
   },
   title: {
     fontSize: 28,
-    fontWeight: "bold",
-    color: Colors.primary,
-    marginBottom: 8,
+    fontWeight: "800",
+    color: "#1e293b",
   },
   subtitle: {
     fontSize: 16,
-    color: Colors.textLight,
+    color: "#64748b",
   },
   form: {
-    backgroundColor: Colors.card,
-    padding: 20,
-    borderRadius: 12,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
+    gap: 16,
+  },
+  inputGroup: {
+    gap: 8,
   },
   label: {
-    fontSize: 16,
+    fontSize: 14,
     fontWeight: "600",
-    color: Colors.text,
-    marginBottom: 8,
+    color: "#334155",
+  },
+  inputContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#f8fafc",
+    borderWidth: 1,
+    borderColor: "#e2e8f0",
+    borderRadius: 12,
+    paddingHorizontal: 16,
+    height: 52,
+  },
+  inputIcon: {
+    marginRight: 12,
   },
   input: {
-    borderWidth: 1,
-    borderColor: Colors.border,
-    borderRadius: 8,
-    padding: 12,
-    marginBottom: 16,
-    fontSize: 16,
-    backgroundColor: "#fff",
+    flex: 1,
+    fontSize: 15,
+    color: "#1e293b",
   },
   button: {
     backgroundColor: Colors.primary,
-    padding: 16,
-    borderRadius: 8,
+    height: 52,
+    borderRadius: 16,
+    justifyContent: "center",
     alignItems: "center",
-    marginTop: 8,
+    marginTop: 16,
+    shadowColor: Colors.primary,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.2,
+    shadowRadius: 8,
+    elevation: 4,
   },
   buttonDisabled: {
-    opacity: 0.6,
+    opacity: 0.7,
   },
   buttonText: {
     color: "#fff",
     fontSize: 16,
-    fontWeight: "600",
+    fontWeight: "bold",
   },
   footer: {
+    marginTop: 30,
     flexDirection: "row",
     justifyContent: "center",
-    marginTop: 20,
+    paddingBottom: 20,
   },
   footerText: {
-    color: Colors.textLight,
+    color: "#64748b",
+    fontSize: 14,
   },
-  linkText: {
+  footerLink: {
     color: Colors.primary,
-    fontWeight: "600",
+    fontWeight: "bold",
+    fontSize: 14,
   },
 });

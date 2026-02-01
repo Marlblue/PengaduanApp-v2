@@ -2,11 +2,11 @@ import { Ionicons } from "@expo/vector-icons";
 import { Tabs } from "expo-router";
 import { Colors } from "../../constants/Colors";
 
-export default function TabLayout() {
+export default function AdminLayout() {
   return (
     <Tabs
       screenOptions={{
-        tabBarActiveTintColor: Colors.primary,
+        tabBarActiveTintColor: Colors.primary, // Admin pakai warna Primary (Biru)
         tabBarInactiveTintColor: Colors.textLight,
         headerStyle: {
           backgroundColor: Colors.primary,
@@ -15,45 +15,43 @@ export default function TabLayout() {
         headerTitleStyle: {
           fontWeight: "bold",
         },
-        tabBarStyle: {
-          backgroundColor: Colors.card,
-        },
       }}
     >
       <Tabs.Screen
-        name="home"
+        name="dashboard"
         options={{
-          title: "Beranda",
+          title: "Admin Panel",
           tabBarIcon: ({ color, size }) => (
-            <Ionicons name="home" size={size} color={color} />
+            <Ionicons name="grid" size={size} color={color} />
           ),
         }}
       />
       <Tabs.Screen
-        name="pengaduan/index"
+        name="laporan"
         options={{
-          title: "Pengaduan",
+          title: "Semua Laporan",
           tabBarIcon: ({ color, size }) => (
-            <Ionicons name="warning" size={size} color={color} />
-          ),
-        }}
-      />
-      <Tabs.Screen
-        name="aspirasi/index"
-        options={{
-          title: "Aspirasi",
-          tabBarIcon: ({ color, size }) => (
-            <Ionicons name="chatbubble" size={size} color={color} />
+            <Ionicons name="list" size={size} color={color} />
           ),
         }}
       />
       <Tabs.Screen
         name="profile"
         options={{
-          title: "Profil",
+          title: "Profil Admin",
           tabBarIcon: ({ color, size }) => (
-            <Ionicons name="person" size={size} color={color} />
+            <Ionicons name="person-circle" size={size} color={color} />
           ),
+        }}
+      />
+
+      {/* Hidden Routes */}
+      <Tabs.Screen
+        name="verifikasi/[id]"
+        options={{
+          href: null,
+          title: "Verifikasi Laporan",
+          tabBarStyle: { display: "none" },
         }}
       />
     </Tabs>

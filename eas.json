@@ -1,6 +1,7 @@
 {
   "cli": {
-    "version": ">= 12.0.0"
+    "version": ">= 12.0.0",
+    "appVersionSource": "remote"
   },
   "build": {
     "development": {
@@ -16,15 +17,15 @@
         "buildType": "apk"
       },
       "env": {
-        "EXPO_PUBLIC_SUPABASE_URL": "https://wgtanjijhfmlggpgxzxy.supabase.co",
-        "EXPO_PUBLIC_SUPABASE_ANON_KEY": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndndGFuamlqaGZtbGdncGd4enh5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjM0Nzk1ODIsImV4cCI6MjA3OTA1NTU4Mn0.dJWFadetQHzhk4-fW_ocTY4hxxYtIy5LaejIMcN0mwQ"
+        "EXPO_PUBLIC_SUPABASE_URL": "https://dxshfhtxxwqtckfdbuap.supabase.co",
+        "EXPO_PUBLIC_SUPABASE_ANON_KEY": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImR4c2hmaHR4eHdxdGNrZmRidWFwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjkwODIyNDMsImV4cCI6MjA4NDY1ODI0M30.Co1pMUVUsm3gKqvGQ0nvyZIx6IN_lNc5BhZac4Qgdcs"
       }
     },
     "production": {
       "autoIncrement": true,
       "env": {
-        "EXPO_PUBLIC_SUPABASE_URL": "https://wgtanjijhfmlggpgxzxy.supabase.co",
-        "EXPO_PUBLIC_SUPABASE_ANON_KEY": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndndGFuamlqaGZtbGdncGd4enh5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjM0Nzk1ODIsImV4cCI6MjA3OTA1NTU4Mn0.dJWFadetQHzhk4-fW_ocTY4hxxYtIy5LaejIMcN0mwQ"
+        "EXPO_PUBLIC_SUPABASE_URL": "https://dxshfhtxxwqtckfdbuap.supabase.co",
+        "EXPO_PUBLIC_SUPABASE_ANON_KEY": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImR4c2hmaHR4eHdxdGNrZmRidWFwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjkwODIyNDMsImV4cCI6MjA4NDY1ODI0M30.Co1pMUVUsm3gKqvGQ0nvyZIx6IN_lNc5BhZac4Qgdcs"
       }
     }
   },

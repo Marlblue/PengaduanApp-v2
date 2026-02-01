@@ -16,6 +16,12 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
     persistSession: true,
     detectSessionInUrl: false,
   },
+  global: {
+    fetch: (url, options) => {
+      // console.log("Supabase Fetch:", url); // Debugging
+      return fetch(url, options);
+    },
+  },
 });
 
 // Storage bucket names
